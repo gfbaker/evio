@@ -1,0 +1,10 @@
+name: evio_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+
+workspace:
+  - packages/evio_core
+  - apps/evio_fan
+  - apps/evio_admin
