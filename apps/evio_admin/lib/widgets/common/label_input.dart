@@ -37,6 +37,7 @@ class LabelInput extends StatelessWidget {
           controller: controller,
           validator: validator,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           style: TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,

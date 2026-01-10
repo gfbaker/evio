@@ -1,11 +1,11 @@
 import '../constants/enums.dart';
 import 'event.dart';
-import 'ticket_type.dart';
+import 'ticket_tier.dart';
 
 class Ticket {
   final String id;
   final String eventId;
-  final String ticketTypeId;
+  final String tierId;
   final String? orderId;
   final String ownerId;
   final String? originalOwnerId;
@@ -20,12 +20,12 @@ class Ticket {
 
   // Relaciones (cargadas con JOIN desde Supabase)
   final Event? event;
-  final TicketType? ticketType;
+  final TicketTier? tier;
 
   const Ticket({
     required this.id,
     required this.eventId,
-    required this.ticketTypeId,
+    required this.tierId,
     this.orderId,
     required this.ownerId,
     this.originalOwnerId,
@@ -38,7 +38,7 @@ class Ticket {
     this.usedByDni,
     this.createdAt,
     this.event,
-    this.ticketType,
+    this.tier,
   });
 
   bool get isUsable => status == TicketStatus.valid;
@@ -54,7 +54,7 @@ class Ticket {
     return Ticket(
       id: json['id'] as String,
       eventId: json['event_id'] as String,
-      ticketTypeId: json['ticket_type_id'] as String,
+      tierId: json['tier_id'] as String,
       orderId: json['order_id'] as String?,
       ownerId: json['owner_id'] as String,
       originalOwnerId: json['original_owner_id'] as String?,
@@ -73,8 +73,8 @@ class Ticket {
       event: json['event'] != null
           ? Event.fromJson(json['event'] as Map<String, dynamic>)
           : null,
-      ticketType: json['ticket_type'] != null
-          ? TicketType.fromJson(json['ticket_type'] as Map<String, dynamic>)
+      tier: json['tier'] != null
+          ? TicketTier.fromJson(json['tier'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -83,7 +83,7 @@ class Ticket {
     return {
       'id': id,
       'event_id': eventId,
-      'ticket_type_id': ticketTypeId,
+      'tier_id': tierId,
       'order_id': orderId,
       'owner_id': ownerId,
       'original_owner_id': originalOwnerId,

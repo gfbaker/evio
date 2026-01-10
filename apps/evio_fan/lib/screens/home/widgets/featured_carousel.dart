@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
+import '../../../providers/saved_event_provider.dart';
+import '../../../widgets/cached_event_image.dart';
 
 class FeaturedCarousel extends StatelessWidget {
   final List<Event> events;
@@ -44,13 +47,20 @@ class FeaturedCarousel extends StatelessWidget {
   }
 }
 
-class _FeaturedCard extends StatelessWidget {
+class _FeaturedCard extends ConsumerWidget {
   final Event event;
 
   const _FeaturedCard({required this.event});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ✅ Check si está guardado
+    final savedIdsAsync = ref.watch(savedEventIdsProvider);
+    final isSaved = savedIdsAsync.maybeWhen(
+      data: (ids) => ids.contains(event.id),
+      orElse: () => false,
+    );
+    
     return GestureDetector(
       onTap: () => context.push('/event/${event.id}'),
       child: Container(
@@ -58,20 +68,18 @@ class _FeaturedCard extends StatelessWidget {
         margin: EdgeInsets.only(right: 12),
         child: Stack(
           children: [
-            // Imagen con bordes redondeados
-            ClipRRect(
+            // Imagen con bordes redondeados y caché
+            CachedEventImage(
+            imageUrl: event.imageUrl,
+            thumbnailUrl: event.thumbnailUrl,
+            fullImageUrl: event.fullImageUrl, // ✅ Fallback
+            useThumbnail: true, // Usar thumbnail en carousel
+            width: 150,
+            height: 200,
+            fit: BoxFit.cover,
               borderRadius: BorderRadius.circular(12),
-              child: event.imageUrl != null
-                  ? Image.network(
-                      event.imageUrl!,
-                      width: 150,
-                      height: 200,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stack) =>
-                          _buildPlaceholder(),
-                    )
-                  : _buildPlaceholder(),
-            ),
+                memCacheWidth: 300, // 2x para retina displays
+              ),
 
             // Gradiente oscuro abajo
             Container(
@@ -117,18 +125,32 @@ class _FeaturedCard extends StatelessWidget {
                 ],
               ),
             ),
+
+            // Botón de guardar
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () {
+                  ref.read(savedEventActionsProvider).toggleSaveEvent(event.id);
+                },
+                child: Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isSaved ? Icons.bookmark : Icons.bookmark_border,
+                    color: isSaved ? EvioFanColors.primary : Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      width: 150,
-      height: 200,
-      color: Color(0xFF252525),
-      child: Icon(Icons.music_note_rounded, size: 40, color: Colors.grey[700]),
     );
   }
 }

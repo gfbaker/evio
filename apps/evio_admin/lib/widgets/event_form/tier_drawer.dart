@@ -599,7 +599,7 @@ class _TierDrawerState extends State<TierDrawer> {
             padding: EdgeInsets.all(EvioSpacing.md),
             decoration: BoxDecoration(
               color: isSelected
-                  ? EvioLightColors.primary.withOpacity(0.1)
+                  ? EvioLightColors.primary.withValues(alpha: 0.1)
                   : EvioLightColors.background,
               borderRadius: BorderRadius.circular(EvioRadius.card),
               border: Border.all(
@@ -809,6 +809,13 @@ class _TierDrawerState extends State<TierDrawer> {
   }
 
   Widget _buildManualOptionsInline() {
+    // Usar colores consistentes del sistema
+    final statusColor = _isActive 
+        ? EvioLightColors.success  // Verde para activo
+        : const Color(0xFF64748B);  // Slate-500 para pausado
+    final statusIcon = _isActive ? Icons.check_circle : Icons.pause_circle;
+    final statusLabel = _isActive ? 'Activo' : 'Pausado';
+    
     return Row(
       children: [
         Expanded(
@@ -840,23 +847,21 @@ class _TierDrawerState extends State<TierDrawer> {
             vertical: EvioSpacing.xs,
           ),
           decoration: BoxDecoration(
-            color: _isActive
-                ? Colors.green.withOpacity(0.1)
-                : Colors.orange.withOpacity(0.1),
+            color: statusColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(EvioRadius.button),
           ),
           child: Row(
             children: [
               Icon(
-                _isActive ? Icons.check_circle : Icons.pause_circle,
+                statusIcon,
                 size: 16,
-                color: _isActive ? Colors.green : Colors.orange,
+                color: statusColor,
               ),
               SizedBox(width: EvioSpacing.xs),
               Text(
-                _isActive ? 'Activo' : 'Pausado',
+                statusLabel,
                 style: EvioTypography.labelSmall.copyWith(
-                  color: _isActive ? Colors.green : Colors.orange,
+                  color: statusColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),

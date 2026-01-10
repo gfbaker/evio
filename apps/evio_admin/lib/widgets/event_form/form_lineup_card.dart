@@ -191,7 +191,7 @@ class _FormLineupCardState extends ConsumerState<FormLineupCard> {
                 vertical: 2,
               ),
               decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.2),
+                color: Colors.amber.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(

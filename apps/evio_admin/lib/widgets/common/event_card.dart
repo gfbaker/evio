@@ -111,8 +111,8 @@ class _EventCardState extends ConsumerState<EventCard> {
                 padding: EdgeInsets.only(
                   left: EvioSpacing.md,
                   right: EvioSpacing.md,
-                  top: EvioSpacing.md,
-                  bottom: EvioSpacing.sm, // ✅ Reducido de md a sm
+                  top: EvioSpacing.sm,
+                  bottom: EvioSpacing.xxs, // ✅ Reducido 1px más (xs → xxs)
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,7 +138,7 @@ class _EventCardState extends ConsumerState<EventCard> {
                         color: EvioLightColors.mutedForeground,
                       ),
                     ),
-                    SizedBox(height: EvioSpacing.sm),
+                    SizedBox(height: EvioSpacing.xs),  // ✅ Reducido de sm a xs
 
                     // Fecha y Hora
                     _InfoRow(
@@ -158,7 +158,7 @@ class _EventCardState extends ConsumerState<EventCard> {
 
                     // Divisor
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: EvioSpacing.sm),
+                      padding: EdgeInsets.symmetric(vertical: EvioSpacing.xs),  // ✅ Reducido de sm a xs
                       child: Divider(height: 1, color: EvioLightColors.border),
                     ),
 
@@ -463,10 +463,13 @@ class _EventCardMenu extends StatelessWidget {
         Navigator.of(navContext).overlay!.context.findRenderObject()
             as RenderBox;
 
+    // 🔥 FIX: Posicionar el menú relativo al botón, no a coordenadas globales
     final RelativeRect position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        offset.translate(0, size.height),
-        offset.translate(size.width, size.height + 80),
+      Rect.fromLTWH(
+        offset.dx,
+        offset.dy + size.height, // Justo debajo del botón
+        size.width,
+        0,
       ),
       Offset.zero & overlay.size,
     );

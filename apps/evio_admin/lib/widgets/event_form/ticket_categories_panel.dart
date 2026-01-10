@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../providers/event_providers.dart';
+import '../../widgets/events/tier_status_badge.dart';
 import 'tier_drawer.dart';
 
 /// Panel principal para gestionar categorías y tiers de tickets
@@ -55,25 +56,26 @@ class TicketCategoriesPanel extends ConsumerWidget {
 
           Divider(height: 1, color: EvioLightColors.border),
 
-          // Categories List
+          // Categories List or Empty State
           if (categories.isEmpty)
             _buildEmptyState(context, notifier)
-          else
+          else ...[
             _buildCategoriesList(context, ref, categories),
-
-          // Add Category Button
-          Padding(
-            padding: EdgeInsets.all(EvioSpacing.lg),
-            child: OutlinedButton.icon(
-              onPressed: () => _showAddCategoryDialog(context, notifier),
-              icon: Icon(Icons.add, size: 20),
-              label: Text('Agregar categoría'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: EvioLightColors.primary,
-                side: BorderSide(color: EvioLightColors.border),
+            
+            // Add Category Button (solo cuando hay categorías)
+            Padding(
+              padding: EdgeInsets.all(EvioSpacing.lg),
+              child: OutlinedButton.icon(
+                onPressed: () => _showAddCategoryDialog(context, notifier),
+                icon: Icon(Icons.add, size: 20),
+                label: Text('Agregar categoría'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: EvioLightColors.primary,
+                  side: BorderSide(color: EvioLightColors.border),
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -109,7 +111,11 @@ class TicketCategoriesPanel extends ConsumerWidget {
               label: Text('Crear primera categoría'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: EvioLightColors.primary,
-                foregroundColor: Colors.black,
+                foregroundColor: Colors.white,  // ✅ Texto blanco para contraste
+                padding: EdgeInsets.symmetric(
+                  horizontal: EvioSpacing.xl,
+                  vertical: EvioSpacing.md,
+                ),
               ),
             ),
           ],
@@ -633,7 +639,7 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
                   vertical: EvioSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
-                  color: EvioLightColors.primary.withOpacity(0.1),
+                  color: EvioLightColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(EvioRadius.button),
                 ),
                 child: Text(
@@ -732,52 +738,21 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
     );
   }
 
-  Widget _buildTierStatus(TicketTier tier, int index) {
-    String statusText;
-    Color statusColor;
-    IconData statusIcon;
-
-    if (tier.soldCount >= tier.quantity) {
-      statusText = 'Agotado';
-      statusColor = Colors.red;
-      statusIcon = Icons.cancel;
-    } else if (!tier.isActive) {
-      statusText = 'Pausado';
-      statusColor = Colors.grey;
-      statusIcon = Icons.pause_circle_outline;
-    } else if (tier.saleStartsAt != null) {
-      final now = DateTime.now();
-      if (now.isBefore(tier.saleStartsAt!)) {
-        statusText = 'Programado para ${_formatDate(tier.saleStartsAt!)}';
-        statusColor = Colors.orange;
-        statusIcon = Icons.schedule;
-      } else if (tier.saleEndsAt != null && now.isAfter(tier.saleEndsAt!)) {
-        statusText = 'Finalizado';
-        statusColor = Colors.grey;
-        statusIcon = Icons.event_busy;
-      } else {
-        statusText = 'Activo';
-        statusColor = Colors.green;
-        statusIcon = Icons.check_circle;
-      }
-    } else if (index == 0) {
-      statusText = 'Activo (primera tanda)';
-      statusColor = Colors.green;
-      statusIcon = Icons.check_circle;
-    } else {
-      statusText = 'Esperando (se activa cuando Tier $index se agote)';
-      statusColor = Colors.orange;
-      statusIcon = Icons.hourglass_empty;
-    }
+  Widget _buildTierStatus(TicketTier tier, int tierIndex) {
+    // Obtener tier anterior para detectar estado "en espera"
+    final previousTier = tierIndex > 0 ? widget.category.tiers[tierIndex - 1] : null;
+    
+    // Usar la misma lógica que en detail
+    final status = TierStatusInfo.fromTier(tier, previousTier: previousTier);
 
     return Row(
       children: [
-        Icon(statusIcon, size: 14, color: statusColor),
+        Icon(status.icon, size: 14, color: status.badgeColor),
         SizedBox(width: EvioSpacing.xxs),
         Flexible(
           child: Text(
-            statusText,
-            style: EvioTypography.caption.copyWith(color: statusColor),
+            status.label,
+            style: EvioTypography.caption.copyWith(color: status.badgeColor),
           ),
         ),
       ],
@@ -900,9 +875,5 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }

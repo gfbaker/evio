@@ -85,9 +85,16 @@ class _MapPickerDialogState extends State<MapPickerDialog> {
     _isDisposed = true;
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
-    // ✅ Solo dispose si el controller fue creado
+    
+    // ✅ Try-catch para prevenir error de google_maps_flutter_web
     if (_mapController != null) {
-      _mapController?.dispose();
+      try {
+        _mapController?.dispose();
+      } catch (e) {
+        // Ignorar error de dispose de google_maps_flutter_web
+        // "Maps cannot be retrieved before calling buildView!"
+        debugPrint('⚠️ MapController dispose error (ignorado): $e');
+      }
     }
     super.dispose();
   }
@@ -144,7 +151,7 @@ class _MapPickerDialogState extends State<MapPickerDialog> {
         });
       }
     } catch (e) {
-      // Ignorar errores
+      // Ignorar errores de geocoding
     }
   }
 
@@ -327,7 +334,7 @@ class _MapPickerDialogState extends State<MapPickerDialog> {
                                   child: Container(
                                     padding: EdgeInsets.all(EvioSpacing.sm),
                                     color: isSelected
-                                        ? EvioLightColors.primary.withOpacity(0.1)
+                                        ? EvioLightColors.primary.withValues(alpha: 0.1)
                                         : null,
                                     child: Row(
                                       children: [

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 
 class CompanyScreen extends ConsumerStatefulWidget {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:evio_core/evio_core.dart';
+import '../../../widgets/cached_event_image.dart';
 
 class EventHeroSection extends StatelessWidget {
   final Event event;
@@ -120,24 +121,12 @@ class EventHeroSection extends StatelessWidget {
   }
 
   Widget _buildBackgroundImage() {
-    if (event.imageUrl != null) {
-      return Image.network(
-        event.imageUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildPlaceholder(),
-      );
-    }
-    return _buildPlaceholder();
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      color: EvioFanColors.surface,
-      child: Icon(
-        Icons.music_note_rounded,
-        color: EvioFanColors.mutedForeground,
-        size: EvioSpacing.xxxl,
-      ),
+    return CachedEventImage(
+      imageUrl: event.imageUrl,
+      fullImageUrl: event.fullImageUrl, // ✅ Fallback
+      fit: BoxFit.cover,
+      height: 500,
+      memCacheHeight: 1000, // Hero grande
     );
   }
 

@@ -1,5 +1,4 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// ignore_for_file: deprecated_member_use
 
 part of 'event_provider.dart';
 
@@ -7,7 +6,7 @@ part of 'event_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$eventInfoHash() => r'9f3e8a7b5c2d1e4f6a8b9c0d1e2f3a4b5c6d7e8f';
+String _$eventInfoHash() => r'7883e095721ca2cf7ff20a251f955071063e84f1';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -48,21 +47,13 @@ class EventInfoFamily extends Family<AsyncValue<Event?>> {
   /// ✅ CACHED: Info estática del evento (inmutable)
   ///
   /// Copied from [eventInfo].
-  EventInfoProvider call(
-    String eventId,
-  ) {
-    return EventInfoProvider(
-      eventId,
-    );
+  EventInfoProvider call(String eventId) {
+    return EventInfoProvider(eventId);
   }
 
   @override
-  EventInfoProvider getProviderOverride(
-    covariant EventInfoProvider provider,
-  ) {
-    return call(
-      provider.eventId,
-    );
+  EventInfoProvider getProviderOverride(covariant EventInfoProvider provider) {
+    return call(provider.eventId);
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -87,24 +78,18 @@ class EventInfoProvider extends FutureProvider<Event?> {
   /// ✅ CACHED: Info estática del evento (inmutable)
   ///
   /// Copied from [eventInfo].
-  EventInfoProvider(
-    String eventId,
-  ) : this._internal(
-          (ref) => eventInfo(
-            ref as EventInfoRef,
-            eventId,
-          ),
-          from: eventInfoProvider,
-          name: r'eventInfoProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$eventInfoHash,
-          dependencies: EventInfoFamily._dependencies,
-          allTransitiveDependencies:
-              EventInfoFamily._allTransitiveDependencies,
-          eventId: eventId,
-        );
+  EventInfoProvider(String eventId)
+    : this._internal(
+        (ref) => eventInfo(ref as EventInfoRef, eventId),
+        from: eventInfoProvider,
+        name: r'eventInfoProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$eventInfoHash,
+        dependencies: EventInfoFamily._dependencies,
+        allTransitiveDependencies: EventInfoFamily._allTransitiveDependencies,
+        eventId: eventId,
+      );
 
   EventInfoProvider._internal(
     super._createNotifier, {
@@ -155,6 +140,8 @@ class EventInfoProvider extends FutureProvider<Event?> {
   }
 }
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 mixin EventInfoRef on FutureProviderRef<Event?> {
   /// The parameter `eventId` of this provider.
   String get eventId;
@@ -168,7 +155,7 @@ class _EventInfoProviderElement extends FutureProviderElement<Event?>
   String get eventId => (origin as EventInfoProvider).eventId;
 }
 
-String _$eventInfoBySlugHash() => r'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0';
+String _$eventInfoBySlugHash() => r'607bdbc28a333b6c961767beec68e49f5100fe21';
 
 /// ✅ CACHED: Evento por slug (inmutable)
 ///
@@ -188,21 +175,15 @@ class EventInfoBySlugFamily extends Family<AsyncValue<Event?>> {
   /// ✅ CACHED: Evento por slug (inmutable)
   ///
   /// Copied from [eventInfoBySlug].
-  EventInfoBySlugProvider call(
-    String slug,
-  ) {
-    return EventInfoBySlugProvider(
-      slug,
-    );
+  EventInfoBySlugProvider call(String slug) {
+    return EventInfoBySlugProvider(slug);
   }
 
   @override
   EventInfoBySlugProvider getProviderOverride(
     covariant EventInfoBySlugProvider provider,
   ) {
-    return call(
-      provider.slug,
-    );
+    return call(provider.slug);
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -227,24 +208,19 @@ class EventInfoBySlugProvider extends FutureProvider<Event?> {
   /// ✅ CACHED: Evento por slug (inmutable)
   ///
   /// Copied from [eventInfoBySlug].
-  EventInfoBySlugProvider(
-    String slug,
-  ) : this._internal(
-          (ref) => eventInfoBySlug(
-            ref as EventInfoBySlugRef,
-            slug,
-          ),
-          from: eventInfoBySlugProvider,
-          name: r'eventInfoBySlugProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$eventInfoBySlugHash,
-          dependencies: EventInfoBySlugFamily._dependencies,
-          allTransitiveDependencies:
-              EventInfoBySlugFamily._allTransitiveDependencies,
-          slug: slug,
-        );
+  EventInfoBySlugProvider(String slug)
+    : this._internal(
+        (ref) => eventInfoBySlug(ref as EventInfoBySlugRef, slug),
+        from: eventInfoBySlugProvider,
+        name: r'eventInfoBySlugProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$eventInfoBySlugHash,
+        dependencies: EventInfoBySlugFamily._dependencies,
+        allTransitiveDependencies:
+            EventInfoBySlugFamily._allTransitiveDependencies,
+        slug: slug,
+      );
 
   EventInfoBySlugProvider._internal(
     super._createNotifier, {
@@ -295,6 +271,8 @@ class EventInfoBySlugProvider extends FutureProvider<Event?> {
   }
 }
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 mixin EventInfoBySlugRef on FutureProviderRef<Event?> {
   /// The parameter `slug` of this provider.
   String get slug;
@@ -307,5 +285,6 @@ class _EventInfoBySlugProviderElement extends FutureProviderElement<Event?>
   @override
   String get slug => (origin as EventInfoBySlugProvider).slug;
 }
+
 // ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member
+// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

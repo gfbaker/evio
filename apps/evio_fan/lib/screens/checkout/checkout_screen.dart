@@ -30,111 +30,142 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Validar que haya datos en el carrito
     if (cart.eventId == null || cart.isEmpty) {
       return Scaffold(
-        backgroundColor: EvioFanColors.background,
-        appBar: AppBar(
-          backgroundColor: EvioFanColors.background,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: EvioFanColors.foreground),
-            onPressed: () => context.go('/home'),
+        body: Container(
+          decoration: EvioBackgrounds.screenBackground(
+            EvioFanColors.background,
           ),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.shopping_cart_outlined,
-                size: 64,
-                color: EvioFanColors.mutedForeground,
-              ),
-              SizedBox(height: EvioSpacing.md),
-              Text(
-                'Carrito vacío',
-                style: EvioTypography.h3.copyWith(
-                  color: EvioFanColors.foreground,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.shopping_cart_outlined,
+                  size: 64,
+                  color: EvioFanColors.mutedForeground,
                 ),
-              ),
-              SizedBox(height: EvioSpacing.lg),
-              ElevatedButton(
-                onPressed: () => context.go('/home'),
-                child: const Text('Volver al inicio'),
-              ),
-            ],
+                SizedBox(height: EvioSpacing.md),
+                Text(
+                  'Carrito vacío',
+                  style: EvioTypography.h3.copyWith(
+                    color: EvioFanColors.foreground,
+                  ),
+                ),
+                SizedBox(height: EvioSpacing.lg),
+                ElevatedButton(
+                  onPressed: () => context.go('/home'),
+                  child: const Text('Volver al inicio'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
     final eventAsync = ref.watch(eventInfoProvider(cart.eventId!));
-    final ticketsAsync = ref.watch(ticketTypesProvider(cart.eventId!));
+    final categoriesAsync = ref.watch(
+      eventTicketCategoriesProvider(cart.eventId!),
+    );
 
     // ✅ FIX CRÍTICO: Aquí faltaba el return del Scaffold principal
     return Scaffold(
-      backgroundColor: EvioFanColors.background,
-      appBar: AppBar(
-        backgroundColor: EvioFanColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: EvioFanColors.foreground),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          'Checkout',
-          style: EvioTypography.h3.copyWith(color: EvioFanColors.foreground),
-        ),
-      ),
-      body: eventAsync.when(
-        data: (event) {
-          if (event == null) {
-            return Center(
-              child: Text(
-                'Evento no encontrado',
-                style: EvioTypography.bodyLarge.copyWith(
-                  color: EvioFanColors.foreground,
+      body: Container(
+        decoration: EvioBackgrounds.screenBackground(EvioFanColors.background),
+        child: Column(
+          children: [
+            // AppBar manual
+            SafeArea(
+              bottom: false,
+              child: Container(
+                height: 56,
+                padding: EdgeInsets.symmetric(horizontal: EvioSpacing.xs),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: EvioFanColors.foreground,
+                      ),
+                      onPressed: () => context.pop(),
+                    ),
+                    Text(
+                      'Checkout',
+                      style: EvioTypography.h3.copyWith(
+                        color: EvioFanColors.foreground,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          }
-
-          return ticketsAsync.when(
-            data: (tickets) => _buildContent(event, tickets),
-            loading: () => Center(
-              child: CircularProgressIndicator(color: EvioFanColors.primary),
             ),
-            error: (e, st) => Center(
-              child: Text(
-                'Error: $e',
-                style: TextStyle(color: EvioFanColors.error),
+            // Body
+            Expanded(
+              child: eventAsync.when(
+                data: (event) {
+                  if (event == null) {
+                    return Center(
+                      child: Text(
+                        'Evento no encontrado',
+                        style: EvioTypography.bodyLarge.copyWith(
+                          color: EvioFanColors.foreground,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return categoriesAsync.when(
+                    data: (categories) {
+                      // Aplanar todas las tiers de todas las categorías
+                      final allTiers = categories
+                          .expand((category) => category.tiers)
+                          .toList();
+                      return _buildContent(event, allTiers);
+                    },
+                    loading: () => Center(
+                      child: CircularProgressIndicator(
+                        color: EvioFanColors.primary,
+                      ),
+                    ),
+                    error: (e, st) => Center(
+                      child: Text(
+                        'Error: $e',
+                        style: TextStyle(color: EvioFanColors.error),
+                      ),
+                    ),
+                  );
+                },
+                loading: () => Center(
+                  child: CircularProgressIndicator(
+                    color: EvioFanColors.primary,
+                  ),
+                ),
+                error: (e, st) => Center(
+                  child: Text(
+                    'Error: $e',
+                    style: TextStyle(color: EvioFanColors.error),
+                  ),
+                ),
               ),
             ),
-          );
-        },
-        loading: () => Center(
-          child: CircularProgressIndicator(color: EvioFanColors.primary),
-        ),
-        error: (e, st) => Center(
-          child: Text(
-            'Error: $e',
-            style: TextStyle(color: EvioFanColors.error),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildContent(Event event, List<TicketType> allTickets) {
+  Widget _buildContent(Event event, List<TicketTier> allTiers) {
     final cart = ref.watch(cartProvider);
 
-    // Filtrar solo los tickets seleccionados
-    final selectedTickets = allTickets
+    // Filtrar solo los tiers seleccionados
+    final selectedTiers = allTiers
         .where((t) => cart.items.containsKey(t.id))
         .toList();
 
     // Calcular totales
     int subtotal = 0;
-    for (final ticket in selectedTickets) {
-      final qty = cart.items[ticket.id] ?? 0;
-      subtotal += ticket.price * qty;
+    for (final tier in selectedTiers) {
+      final qty = cart.items[tier.id] ?? 0;
+      subtotal += tier.price * qty;
     }
 
     const serviceFee = 350; // $3.50 en centavos
@@ -158,10 +189,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 SizedBox(height: EvioSpacing.lg),
 
-                // Tickets seleccionados
-                ...selectedTickets.map((ticket) {
-                  final qty = cart.items[ticket.id] ?? 0;
-                  return _buildTicketItem(ticket, qty);
+                // Tiers seleccionados
+                ...selectedTiers.map((tier) {
+                  final qty = cart.items[tier.id] ?? 0;
+                  return _buildTicketItem(tier, qty);
                 }),
 
                 SizedBox(height: EvioSpacing.xl),
@@ -249,7 +280,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildTicketItem(TicketType ticket, int quantity) {
+  Widget _buildTicketItem(TicketTier tier, int quantity) {
     return Container(
       margin: EdgeInsets.only(bottom: EvioSpacing.md),
       padding: EdgeInsets.all(EvioSpacing.md),
@@ -265,7 +296,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  ticket.name,
+                  tier.name,
                   style: EvioTypography.bodyLarge.copyWith(
                     color: EvioFanColors.foreground,
                     fontWeight: FontWeight.w600,
@@ -273,7 +304,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 SizedBox(height: EvioSpacing.xxs),
                 Text(
-                  'Precio: \$${(ticket.price / 100).toStringAsFixed(0)}',
+                  'Precio: ${CurrencyFormatter.formatPrice(tier.price)}',
                   style: EvioTypography.bodySmall.copyWith(
                     color: EvioFanColors.mutedForeground,
                   ),
@@ -325,7 +356,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               .copyWith(color: EvioFanColors.foreground),
         ),
         Text(
-          '\$${(amount / 100).toStringAsFixed(2)}',
+          CurrencyFormatter.formatPrice(amount, includeDecimals: true),
           style: (isBold ? EvioTypography.h3 : EvioTypography.bodyLarge)
               .copyWith(
                 color: isBold
@@ -467,22 +498,32 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         throw Exception('Usuario no autenticado');
       }
 
-      print('🟡 CHECKOUT: Iniciando pago');
-      print('🟡 User ID (Auth): ${authUser.id}');
-      print('🟡 Event ID: ${cart.eventId}');
-      print('🟡 Tickets: ${cart.items}');
+      debugPrint('🟡 CHECKOUT: Iniciando pago');
+      debugPrint('🟡 Auth UID: ${authUser.id}');
 
-      await ref.read(checkoutProvider.notifier).processPayment(
-        eventId: cart.eventId!,
-        userId: authUser.id,
-        ticketQuantities: cart.items,
-      );
+      // ✅ Obtener el User completo de la tabla users (no solo auth)
+      final userAsync = await ref.read(currentUserProvider.future);
+      if (userAsync == null) {
+        throw Exception('Usuario no encontrado en la base de datos');
+      }
+
+      debugPrint('🟡 User ID (DB): ${userAsync.id}');
+      debugPrint('🟡 Event ID: ${cart.eventId}');
+      debugPrint('🟡 Tickets: ${cart.items}');
+
+      await ref
+          .read(checkoutProvider.notifier)
+          .processPayment(
+            eventId: cart.eventId!,
+            userId: userAsync.id, // ✅ Usar users.id, NO auth.uid()
+            tierQuantities: cart.items,
+          );
 
       final checkoutState = ref.read(checkoutProvider);
 
-      print('🟡 CHECKOUT: Respuesta recibida');
-      print('🟡 Error: ${checkoutState.error}');
-      print('🟡 Order: ${checkoutState.completedOrder?.id}');
+      debugPrint('🟡 CHECKOUT: Respuesta recibida');
+      debugPrint('🟡 Error: ${checkoutState.error}');
+      debugPrint('🟡 Order: ${checkoutState.completedOrder?.id}');
 
       if (!mounted) return;
 
@@ -491,14 +532,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       if (checkoutState.error != null) {
         // ❌ Error - Mostrar Dialog
-        print('❌ ERROR EN CHECKOUT: ${checkoutState.error}');
+        debugPrint('❌ ERROR EN CHECKOUT: ${checkoutState.error}');
         _showErrorDialog(checkoutState.error!);
         return;
       }
 
       // ✅ Orden creada exitosamente
-      print('✅ ORDEN CREADA EXITOSAMENTE');
-      
+      debugPrint('✅ ORDEN CREADA EXITOSAMENTE');
+
       // Limpiar carrito
       ref.read(cartProvider.notifier).clear();
 
@@ -507,11 +548,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       // Mostrar success modal
       _showSuccessModal();
     } catch (e, stackTrace) {
-      print('❌ EXCEPCIÓN EN CHECKOUT: $e');
-      print('❌ STACK: $stackTrace');
-      
+      debugPrint('❌ EXCEPCIÓN EN CHECKOUT: $e');
+      debugPrint('❌ STACK: $stackTrace');
+
       if (!mounted) return;
-      
+
       // Cerrar loading si está abierto
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();

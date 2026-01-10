@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,8 +8,10 @@ import 'package:intl/intl.dart';
 import 'package:evio_core/evio_core.dart';
 
 import '../../providers/event_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/common/event_card.dart';
 import '../../widgets/common/event_list_item.dart';
+import '../../widgets/common/producer_onboarding_dialog.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -32,6 +36,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         setState(() {});
       }
     });
+
+    // Mostrar modal de onboarding si no tiene producer_id
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkOnboarding();
+    });
+  }
+
+  Future<void> _checkOnboarding() async {
+    if (_isDisposed || !mounted) return;
+
+    try {
+      final user = await ref
+          .read(currentUserProvider.future)
+          .timeout(Duration(seconds: 10));
+
+      if (_isDisposed || !mounted) return;
+
+      if (user?.producerId == null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const ProducerOnboardingDialog(),
+        );
+      }
+    } on TimeoutException {
+      // Silencioso - si falla el check, dejamos que el usuario siga
+      debugPrint('Timeout checking onboarding status');
+    } catch (e) {
+      // Silencioso - si falla el check, dejamos que el usuario siga
+      debugPrint('Error checking onboarding: $e');
+    }
   }
 
   @override
@@ -159,7 +194,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildEventsGrid() {
     return Consumer(
       builder: (context, ref, _) {
-        final eventsAsync = ref.watch(currentUserEventsProvider);
+        final eventsAsync = ref.watch(currentUserEventsNotifierProvider);
 
         return eventsAsync.when(
           data: (events) {
@@ -321,7 +356,7 @@ class _StatsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final eventsAsync = ref.watch(currentUserEventsProvider);
+    final eventsAsync = ref.watch(currentUserEventsNotifierProvider);
 
     return eventsAsync.when(
       data: (events) {
@@ -687,7 +722,7 @@ class _EventCountBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final eventsAsync = ref.watch(currentUserEventsProvider);
+    final eventsAsync = ref.watch(currentUserEventsNotifierProvider);
 
     return eventsAsync.when(
       data: (events) {

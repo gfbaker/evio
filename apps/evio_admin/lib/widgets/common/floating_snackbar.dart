@@ -233,7 +233,6 @@ class _FloatingSnackBarWidgetState extends State<_FloatingSnackBarWidget>
           'icon': Icons.warning,
         };
       case SnackBarType.info:
-      default:
         return {'bgColor': EvioLightColors.primary, 'icon': Icons.info};
     }
   }

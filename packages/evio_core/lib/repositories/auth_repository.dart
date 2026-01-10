@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../services/supabase_service.dart';
 import '../models/user.dart';
+import '../constants/enums.dart';
 
 class AuthRepository {
   final _client = SupabaseService.client;
@@ -20,33 +21,26 @@ class AuthRepository {
     required String password,
     required String name,
     required String surname,
+    UserRole role = UserRole.fan,
   }) async {
     final response = await _client.auth.signUp(
       email: email,
       password: password,
-      data: {'name': name, 'surname': surname},
+      data: {'name': name, 'surname': surname, 'role': role.name},
     );
 
     if (response.user == null) {
       throw Exception('Error al crear usuario');
     }
 
-    // Crear perfil en tabla users
-    final userData = {
-      'id': response.user!.id,
-      'auth_provider_id': response.user!.id,
-      'email': email,
-      'name': name,
-      'surname': surname,
-      'role': 'fan',
-      'is_active': true,
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
-    };
-
-    await _client.from('users').insert(userData);
-
-    return User.fromJson(userData);
+    // ✅ El trigger handle_new_user() crea automáticamente el registro en public.users
+    // No hacemos insert manual para evitar duplicados
+    
+    // Esperar a que el trigger complete
+    await Future.delayed(Duration(milliseconds: 500));
+    
+    // Obtener el perfil creado por el trigger
+    return _getUserProfile(response.user!.id);
   }
 
   // Login con email/password

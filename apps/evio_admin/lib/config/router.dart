@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +13,8 @@ import '../screens/events/event_detail_screen.dart';
 import '../screens/events/event_form_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/settings/users_screen.dart';
+import '../screens/settings/sellers_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -109,6 +109,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'settings',
             pageBuilder: (context, state) =>
                 NoTransitionPage(child: SettingsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/team/collaborators',
+            name: 'team-collaborators',
+            pageBuilder: (context, state) =>
+                NoTransitionPage(child: const UsersScreen()),
+          ),
+          GoRoute(
+            path: '/admin/team/sellers',
+            name: 'team-sellers',
+            pageBuilder: (context, state) =>
+                NoTransitionPage(child: const SellersScreen()),
           ),
         ],
       ),

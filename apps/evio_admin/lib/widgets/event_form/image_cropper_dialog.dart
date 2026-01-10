@@ -80,7 +80,7 @@ class _ImageCropperDialogState extends State<ImageCropperDialog> {
                     IgnorePointer(
                       child: ColorFiltered(
                         colorFilter: ColorFilter.mode(
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                           BlendMode.srcOut,
                         ),
                         child: Stack(
@@ -122,33 +122,12 @@ class _ImageCropperDialogState extends State<ImageCropperDialog> {
                                 children: [
                                   Spacer(),
                                   VerticalDivider(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.white.withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                   Spacer(),
                                   VerticalDivider(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                  Spacer(),
-                                ],
-                              ),
-                            ),
-                            Divider(
-                              color: Colors.white.withOpacity(0.3),
-                              height: 1,
-                            ),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Spacer(),
-                                  VerticalDivider(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                  Spacer(),
-                                  VerticalDivider(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.white.withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                   Spacer(),
@@ -156,7 +135,7 @@ class _ImageCropperDialogState extends State<ImageCropperDialog> {
                               ),
                             ),
                             Divider(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Colors.white.withValues(alpha: 0.3),
                               height: 1,
                             ),
                             Expanded(
@@ -164,12 +143,33 @@ class _ImageCropperDialogState extends State<ImageCropperDialog> {
                                 children: [
                                   Spacer(),
                                   VerticalDivider(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.white.withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                   Spacer(),
                                   VerticalDivider(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 1,
+                                  ),
+                                  Spacer(),
+                                ],
+                              ),
+                            ),
+                            Divider(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              height: 1,
+                            ),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Spacer(),
+                                  VerticalDivider(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 1,
+                                  ),
+                                  Spacer(),
+                                  VerticalDivider(
+                                    color: Colors.white.withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                   Spacer(),

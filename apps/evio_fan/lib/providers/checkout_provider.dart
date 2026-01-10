@@ -1,4 +1,5 @@
 import 'package:evio_fan/providers/order_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
 
@@ -40,35 +41,35 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
   Future<void> processPayment({
     required String eventId,
     required String userId,
-    required Map<String, int> ticketQuantities,
+    required Map<String, int> tierQuantities,
   }) async {
     state = state.copyWith(isProcessing: true, error: null);
 
     try {
-      // 1. Crear orden SEGURA (con validación atómica)
-      // ✅ createOrderSafe YA crea: orden + tickets + actualiza sold_quantity
+      // 1. Crear orden SEGURA con validación atómica (nuevo sistema tiers)
+      // ✅ createOrderSafe_v2 YA crea: orden + order_items + actualiza sold_count
       final orderId = await _orderRepository.createOrderSafe(
         userId: userId,
         eventId: eventId,
-        ticketQuantities: ticketQuantities,
+        tierQuantities: tierQuantities,
       );
 
-      print('✅ ORDEN CREADA: $orderId');
+      debugPrint('✅ ORDEN CREADA: $orderId');
 
       // 2. Simular delay de pago (2 segundos)
       await Future.delayed(const Duration(seconds: 2));
 
       // 3. Obtener orden completa
-      print('🔍 Obteniendo orden...');
+      debugPrint('🔍 Obteniendo orden...');
       final order = await _orderRepository.getOrderById(orderId);
-      print('✅ Orden obtenida: ${order?.id}');
+      debugPrint('✅ Orden obtenida: ${order?.id}');
 
       // 4. Actualizar estado
       state = state.copyWith(isProcessing: false, completedOrder: order);
     } on OrderException catch (e) {
       state = state.copyWith(isProcessing: false, error: e.message);
     } catch (e) {
-      print('❌ ERROR EN PROCESS PAYMENT: $e');
+      debugPrint('❌ ERROR EN PROCESS PAYMENT: $e');
       state = state.copyWith(isProcessing: false, error: e.toString());
     }
   }

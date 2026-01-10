@@ -1,5 +1,4 @@
 import '../constants/enums.dart';
-import '';
 
 class User {
   final String id;
@@ -7,7 +6,9 @@ class User {
   final String email;
   final String? firstName;
   final String? lastName;
-  final String? dni;
+  final String? dni; // Solo puede ser establecido una vez
+  final DateTime? birthDate; // Solo puede ser establecido una vez
+  final String? gender; // 'male', 'female', 'other', 'prefer_not_to_say'
   final String? phone;
   final UserRole role;
   final String? avatarUrl;
@@ -23,6 +24,8 @@ class User {
     this.firstName,
     this.lastName,
     this.dni,
+    this.birthDate,
+    this.gender,
     this.phone,
     this.role = UserRole.fan,
     this.avatarUrl,
@@ -54,6 +57,10 @@ class User {
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
       dni: json['dni'] as String?,
+      birthDate: json['birth_date'] != null
+          ? DateTime.parse(json['birth_date'] as String)
+          : null,
+      gender: json['gender'] as String?,
       phone: json['phone'] as String?,
       role: UserRole.fromString(json['role'] as String? ?? 'fan'),
       avatarUrl: json['avatar_url'] as String?,
@@ -76,6 +83,8 @@ class User {
       'first_name': firstName,
       'last_name': lastName,
       'dni': dni,
+      'birth_date': birthDate?.toIso8601String().split('T')[0], // Solo fecha YYYY-MM-DD
+      'gender': gender,
       'phone': phone,
       'role': role.name,
       'avatar_url': avatarUrl,
@@ -93,6 +102,8 @@ class User {
     String? firstName,
     String? lastName,
     String? dni,
+    DateTime? birthDate,
+    String? gender,
     String? phone,
     UserRole? role,
     String? avatarUrl,
@@ -108,6 +119,8 @@ class User {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       dni: dni ?? this.dni,
+      birthDate: birthDate ?? this.birthDate,
+      gender: gender ?? this.gender,
       phone: phone ?? this.phone,
       role: role ?? this.role,
       avatarUrl: avatarUrl ?? this.avatarUrl,

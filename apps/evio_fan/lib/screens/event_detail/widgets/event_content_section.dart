@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../../providers/spotify_provider.dart';
-import '../../../widgets/shimmer/tickets_shimmer.dart';
 import 'event_location_section.dart';
 import 'event_producer_section.dart';
+import 'category_tickets_section.dart';
 
 class EventContentSection extends ConsumerStatefulWidget {
   final Event event;
-  final AsyncValue<List<TicketType>> ticketsAsync;
-  final String? selectedTierId;
+  final AsyncValue<List<TicketCategory>> categoriesAsync;
   final Map<String, int> quantities;
-  final Function(String?) onTierSelected;
   final Function(String, int) onQuantityChanged;
+  final GlobalKey ticketsSectionKey; // ✅ Recibir el key
 
   const EventContentSection({
     super.key,
     required this.event,
-    required this.ticketsAsync,
-    required this.selectedTierId,
+    required this.categoriesAsync,
     required this.quantities,
-    required this.onTierSelected,
     required this.onQuantityChanged,
+    required this.ticketsSectionKey,
   });
 
   @override
@@ -77,7 +74,17 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
                 _buildDescriptionSection(),
                 SizedBox(height: EvioSpacing.xl),
               ],
-              _buildTicketsSection(widget.ticketsAsync),
+              
+              // ✅ NUEVO: Sección de tickets con clave para scroll
+              Container(
+                key: widget.ticketsSectionKey, // ✅ Agregar key aquí
+                child: CategoryTicketsSection(
+                  categoriesAsync: widget.categoriesAsync,
+                  quantities: widget.quantities,
+                  onQuantityChanged: widget.onQuantityChanged,
+                ),
+              ),
+              
               SizedBox(height: EvioSpacing.xl),
               
               // Ubicación (Maps)
@@ -216,190 +223,6 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildTicketsSection(AsyncValue<List<TicketType>> ticketsAsync) {
-    return ticketsAsync.when(
-      data: (tickets) {
-        if (tickets.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Text(
-                'No hay entradas disponibles',
-                style: TextStyle(color: EvioFanColors.mutedForeground),
-              ),
-            ),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Selecciona tus Tickets',
-              style: TextStyle(
-                color: EvioFanColors.foreground,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: EvioSpacing.md),
-            ...tickets.map(
-              (ticket) => Padding(
-                padding: EdgeInsets.only(bottom: EvioSpacing.lg),
-                child: _buildTicketRow(ticket),
-              ),
-            ),
-          ],
-        );
-      },
-      loading: () => const TicketsShimmer(), // ✅ Shimmer en lugar de spinner
-      error: (e, st) => Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 40),
-          child: Column(
-            children: [
-              Text(
-                'Error cargando entradas',
-                style: TextStyle(color: EvioFanColors.mutedForeground),
-              ),
-              SizedBox(height: 8),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  e.toString(),
-                  style: TextStyle(color: EvioFanColors.error, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTicketRow(TicketType ticket) {
-    final quantity = widget.quantities[ticket.id] ?? 0;
-    final isSoldOut = ticket.isSoldOut;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                ticket.name,
-                style: TextStyle(
-                  color: EvioFanColors.foreground,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Text(
-              '\$${(ticket.price / 100).toStringAsFixed(0)} ARS',
-              style: TextStyle(
-                color: EvioFanColors.foreground,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: EvioSpacing.xs),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              isSoldOut
-                  ? 'Agotado'
-                  : 'Máx. ${ticket.maxPerPurchase ?? 10} por persona',
-              style: TextStyle(
-                color: isSoldOut ? Colors.red : EvioFanColors.mutedForeground,
-                fontSize: 12,
-              ),
-            ),
-            if (!isSoldOut)
-              Row(
-                children: [
-                  _buildQuantityButton(
-                    icon: Icons.remove,
-                    onTap: quantity > 0
-                        ? () => widget.onQuantityChanged(ticket.id, quantity - 1)
-                        : null,
-                    isPrimary: false,
-                  ),
-                  SizedBox(width: EvioSpacing.sm),
-                  Container(
-                    width: 40,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$quantity',
-                      style: TextStyle(
-                        color: EvioFanColors.foreground,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: EvioSpacing.sm),
-                  _buildQuantityButton(
-                    icon: Icons.add,
-                    onTap:
-                        quantity <
-                            (ticket.maxPerPurchase ?? ticket.availableQuantity)
-                        ? () => widget.onQuantityChanged(ticket.id, quantity + 1)
-                        : null,
-                    isPrimary: true,
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuantityButton({
-    required IconData icon,
-    required VoidCallback? onTap,
-    bool isPrimary = false,
-  }) {
-    final isDisabled = onTap == null;
-    return GestureDetector(
-      onTap: isDisabled ? null : () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: isPrimary && !isDisabled
-              ? EvioFanColors.primary
-              : Colors.transparent,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isDisabled
-                ? EvioFanColors.border
-                : (isPrimary ? EvioFanColors.primary : EvioFanColors.primary),
-            width: 2,
-          ),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: isDisabled
-              ? EvioFanColors.mutedForeground
-              : (isPrimary ? Colors.black : EvioFanColors.primary),
-        ),
-      ),
     );
   }
 }

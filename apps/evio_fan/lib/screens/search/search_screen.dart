@@ -41,8 +41,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final searchState = ref.watch(searchNotifierProvider);
 
     return Scaffold(
-      backgroundColor: EvioFanColors.background,
-      body: SafeArea(
+      body: Container(
+        decoration: EvioBackgrounds.screenBackground(EvioFanColors.background),
+        child: SafeArea(
         child: Column(
           children: [
             Padding(
@@ -58,6 +59,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Expanded(child: _buildResults()),
           ],
         ),
+      ),
       ),
     );
   }

@@ -1,4 +1,6 @@
 import 'package:evio_fan/screens/tickets/ticket_detail_screen.dart';
+import 'package:evio_fan/screens/tickets/event_tickets_list_screen.dart';
+import 'package:evio_fan/screens/profile/edit_profile_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../screens/home/home_screen.dart';
@@ -9,14 +11,22 @@ import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/event_detail/event_detail_screen.dart';
 import '../screens/checkout/checkout_screen.dart';
+import '../screens/splash/splash_screen.dart';
 import '../widgets/layout/fan_layout.dart';
 import '../providers/order_provider.dart';
 
 // ✅ Convertir a provider para acceder al cart
 final fanRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/splash',
     routes: [
+      // 🚀 Splash Screen (sin layout)
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       // Shell route con bottom nav persistente
       ShellRoute(
         builder: (context, state, child) {
@@ -74,11 +84,32 @@ final fanRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
-        path: '/ticket-detail/:eventId', // ← Cambié ticketId por eventId
+        path: '/event-tickets/:eventId',
         builder: (context, state) {
           final eventId = state.pathParameters['eventId']!;
-          return TicketDetailScreen(eventId: eventId);
+          return EventTicketsListScreen(eventId: eventId);
         },
+      ),
+
+      GoRoute(
+        path: '/ticket-detail/:eventId',
+        builder: (context, state) {
+          final eventId = state.pathParameters['eventId']!;
+          final initialIndex = int.tryParse(
+            state.uri.queryParameters['initialIndex'] ?? '0',
+          ) ?? 0;
+          return TicketDetailScreen(
+            eventId: eventId,
+            initialIndex: initialIndex,
+          );
+        },
+      ),
+
+      // Edit Profile (sin bottom nav, full screen)
+      GoRoute(
+        path: '/profile/edit',
+        name: 'edit-profile',
+        builder: (context, state) => const EditProfileScreen(),
       ),
       // Auth routes (sin bottom nav)
       GoRoute(

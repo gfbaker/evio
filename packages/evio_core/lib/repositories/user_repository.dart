@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../models/user.dart';
 import '../models/user_invitation.dart';
@@ -35,6 +36,19 @@ class UserRepository {
     return User.fromJson(response);
   }
 
+  /// Buscar usuarios por email
+  Future<List<User>> searchUsers(String query) async {
+    if (query.trim().isEmpty) return [];
+
+    final response = await _client
+        .from('users')
+        .select()
+        .ilike('email', '%$query%')
+        .limit(10);
+
+    return (response as List).map((json) => User.fromJson(json)).toList();
+  }
+
   /// Obtener usuarios de una productora
   Future<List<User>> getUsersByProducer(String producerId) async {
     final response = await _client
@@ -52,6 +66,46 @@ class UserRepository {
         .from('users')
         .update(user.toJson())
         .eq('id', user.id)
+        .select()
+        .single();
+
+    return User.fromJson(response);
+  }
+
+  /// Subir avatar del usuario a Supabase Storage
+  /// Retorna la URL pública del avatar
+  Future<String> uploadAvatar({
+    required String userId,
+    required String filePath,
+    required List<int> fileBytes,
+  }) async {
+    // Extraer extensión del archivo
+    final extension = filePath.split('.').last.toLowerCase();
+    final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$extension';
+    
+    // Subir a bucket 'avatars'
+    final uploadPath = 'avatars/$fileName';
+    await _client.storage.from('avatars').uploadBinary(
+      uploadPath,
+      Uint8List.fromList(fileBytes), // Convertir a Uint8List
+      fileOptions: const FileOptions(
+        cacheControl: '3600',
+        upsert: true,
+      ),
+    );
+
+    // Obtener URL pública
+    final publicUrl = _client.storage.from('avatars').getPublicUrl(uploadPath);
+    
+    return publicUrl;
+  }
+
+  /// Actualizar solo el avatar del usuario
+  Future<User> updateAvatar(String userId, String avatarUrl) async {
+    final response = await _client
+        .from('users')
+        .update({'avatar_url': avatarUrl})
+        .eq('id', userId)
         .select()
         .single();
 

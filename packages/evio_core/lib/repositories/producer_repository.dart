@@ -7,6 +7,29 @@ class ProducerRepository {
   ProducerRepository([SupabaseClient? client])
     : _client = client ?? Supabase.instance.client;
 
+  /// Crear nueva productora
+  Future<Producer> createProducer({
+    required String name,
+    required String userId,
+    String? logoUrl,
+    String? email,
+    String? description,
+  }) async {
+    final response = await _client
+        .from('producers')
+        .insert({
+          'name': name,
+          'user_id': userId,
+          'logo_url': logoUrl,
+          'email': email,
+          'description': description,
+        })
+        .select()
+        .single();
+
+    return Producer.fromJson(response);
+  }
+
   /// Obtener productora por ID
   Future<Producer?> getProducerById(String id) async {
     final response = await _client

@@ -20,6 +20,7 @@ class Event {
   final String? organizerName;
   final List<String>? features;
   final String? imageUrl;          // Imagen croppeada (cuadrada, para cards)
+  final String? thumbnailUrl;      // Thumbnail 300x300 para listas (NUEVO)
   final String? fullImageUrl;      // Imagen completa (ratio original, para hero)
   final String? videoUrl;          // URL de video (YouTube, Vimeo, etc)
   final EventStatus status;
@@ -48,6 +49,7 @@ class Event {
     this.organizerName,
     this.features,
     this.imageUrl,
+    this.thumbnailUrl,
     this.fullImageUrl,
     this.videoUrl,
     required this.status,
@@ -77,13 +79,14 @@ class Event {
       venueName: json['venue_name'],
       address: json['address'],
       city: json['city'],
-      lat: json['lat']?.toDouble(),
-      lng: json['lng']?.toDouble(),
+      lat: json['lat'] != null ? (json['lat'] as num).toDouble() : null,
+      lng: json['lng'] != null ? (json['lng'] as num).toDouble() : null,
       genre: json['genre'],
       description: json['description'],
       organizerName: json['organizer_name'],
       features: (json['features'] as List?)?.map((e) => e.toString()).toList(),
       imageUrl: json['image_url'],
+      thumbnailUrl: json['thumbnail_url'],
       fullImageUrl: json['full_image_url'],
       videoUrl: json['video_url'],
       status: EventStatus.values.firstWhere(
@@ -122,6 +125,7 @@ class Event {
       'organizer_name': organizerName,
       'features': features,
       'image_url': imageUrl,
+      'thumbnail_url': thumbnailUrl,
       'full_image_url': fullImageUrl,
       'video_url': videoUrl,
       'status': status.name,

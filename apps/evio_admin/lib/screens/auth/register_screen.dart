@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/common/floating_snackbar.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -50,21 +51,39 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cuenta creada exitosamente'),
-          backgroundColor: Colors.green,
-        ),
+      FloatingSnackBar.show(
+        context,
+        message: 'Cuenta creada exitosamente',
+        type: SnackBarType.success,
       );
 
       context.go('/login');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: EvioLightColors.destructive,
-        ),
+      
+      // Mapear errores técnicos a mensajes user-friendly
+      String errorMessage;
+      final errorStr = e.toString().toLowerCase();
+      
+      if (errorStr.contains('user already registered') || 
+          errorStr.contains('email already exists') ||
+          errorStr.contains('duplicate') ||
+          errorStr.contains('already in use')) {
+        errorMessage = 'Este email ya está registrado. ¿Querés iniciar sesión?';
+      } else if (errorStr.contains('invalid email')) {
+        errorMessage = 'Email inválido. Verificá el formato.';
+      } else if (errorStr.contains('weak password') || errorStr.contains('password')) {
+        errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+      } else if (errorStr.contains('network') || errorStr.contains('timeout')) {
+        errorMessage = 'Error de conexión. Verificá tu internet.';
+      } else {
+        errorMessage = 'Error al crear la cuenta. Intentá de nuevo.';
+      }
+      
+      FloatingSnackBar.show(
+        context,
+        message: errorMessage,
+        type: SnackBarType.error,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

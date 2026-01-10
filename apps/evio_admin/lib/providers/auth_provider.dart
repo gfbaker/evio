@@ -16,7 +16,6 @@ final authStateProvider = StreamProvider<supabase.AuthState>((ref) {
 });
 
 // Current user (evio_core User model)
-// Current user (evio_core User model)
 final currentUserProvider = FutureProvider<User?>((ref) async {
   final authState = await ref.watch(authStateProvider.future);
 
@@ -70,7 +69,7 @@ class AuthController {
     required String password,
     required String name,
     String? surname,
-    UserRole role = UserRole.admin,
+    UserRole role = UserRole.admin, // ✅ Default admin para evio_admin app
   }) async {
     try {
       await _client.auth

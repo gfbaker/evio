@@ -2,19 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 import '../../widgets/common/floating_snackbar.dart';
-
-// Importaciones de tu proyecto
+import '../../widgets/events/tier_status_badge.dart';
+import '../../widgets/events/invitations_drawer.dart';
 import 'package:evio_core/evio_core.dart';
 import 'package:evio_admin/providers/event_providers.dart';
-
-// ✅ PROVIDER: Obtener tickets
-final eventTicketsProvider = FutureProvider.autoDispose
-    .family<List<TicketType>, String>((ref, eventId) async {
-      final repo = ref.watch(eventRepositoryProvider);
-      return repo.getEventTicketTypes(eventId);
-    });
 
 class EventDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -27,13 +19,27 @@ class EventDetailScreen extends ConsumerStatefulWidget {
 
 class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Invalidar providers para forzar refresh al entrar a la pantalla
+    Future.microtask(() {
+      ref.invalidate(eventDetailProvider(widget.eventId));
+      ref.invalidate(eventTicketCategoriesProvider(widget.eventId));
+      ref.invalidate(eventStatsProvider(widget.eventId));
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final eventAsync = ref.watch(eventDetailProvider(widget.eventId));
-    final ticketsAsync = ref.watch(eventTicketsProvider(widget.eventId));
+    final categoriesAsync = ref.watch(
+      eventTicketCategoriesProvider(widget.eventId),
+    );
     final statsAsync = ref.watch(eventStatsProvider(widget.eventId));
 
     return Scaffold(
       backgroundColor: EvioLightColors.background,
+      endDrawer: InvitationsDrawer(eventId: widget.eventId),
       body: eventAsync.when(
         data: (event) {
           if (event == null) {
@@ -60,7 +66,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
                       SizedBox(height: EvioSpacing.xl),
 
-                      // B. Grid de Métricas (CON STATS REALES)
+                      // B. Grid de Métricas
                       statsAsync.when(
                         data: (stats) => LayoutBuilder(
                           builder: (context, constraints) {
@@ -106,14 +112,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
                       SizedBox(height: EvioSpacing.xl),
 
-                      // C. Gestión de Tandas
-                      ticketsAsync.when(
-                        data: (tickets) => _TicketTiersCard(
+                      // C. Categorías y Tiers (V2)
+                      categoriesAsync.when(
+                        data: (categories) => _TicketCategoriesCard(
                           event: event,
-                          tickets: tickets,
-                          onAddTier: () => _showAddTicketDialog(context, event),
-                          onDeleteTier: (ticketId) =>
-                              _deleteTicket(event.id, ticketId),
+                          categories: categories,
                         ),
                         loading: () => Container(
                           height: 200,
@@ -126,7 +129,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             child: CircularProgressIndicator(),
                           ),
                         ),
-                        error: (e, s) => Text('Error tickets: $e'),
+                        error: (e, s) => Text('Error categorías: $e'),
                       ),
 
                       SizedBox(height: EvioSpacing.xl),
@@ -171,30 +174,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     );
   }
 
-  void _deleteTicket(String eventId, String ticketId) async {
-    try {
-      await ref.read(
-        deleteTicketTypeProvider(
-          DeleteTicketTypeParams(eventId: eventId, ticketTypeId: ticketId),
-        ).future,
-      );
-      ref.invalidate(eventTicketsProvider(eventId));
-      ref.invalidate(eventStatsProvider(eventId)); // ✅ También refrescar stats
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Tanda eliminada')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
   void _showDeleteDialog(BuildContext context, Event event) {
     showDialog(
       context: context,
@@ -213,17 +192,33 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               Navigator.pop(dialogContext);
 
               try {
+                debugPrint('🗑️ Eliminando evento: ${event.id}');
                 await ref.read(deleteEventProvider(event.id).future);
-                if (mounted) {
-                  context.go('/admin/dashboard');
-                  // ✅ UN SOLO FloatingSnackBar después de navegar
-                  FloatingSnackBar.show(
-                    context,
-                    message: 'Evento "${event.title}" eliminado exitosamente',
-                    type: SnackBarType.success,
-                  );
-                }
+                debugPrint('✅ deleteEventProvider completado');
+
+                if (!mounted) return;
+
+                // ✅ Invalidar TODOS los providers relacionados
+                ref.invalidate(currentUserEventsProvider);
+                ref.invalidate(eventsProvider);
+                ref.invalidate(eventDetailProvider(event.id));
+                debugPrint('✅ Providers invalidados');
+
+                context.go('/admin/dashboard');
+                debugPrint('✅ Navegado a dashboard');
+
+                // ✅ Mostrar snackbar DESPUÃ‰S de navegar
+                Future.delayed(Duration(milliseconds: 300), () {
+                  if (mounted) {
+                    FloatingSnackBar.show(
+                      context,
+                      message: 'Evento "${event.title}" eliminado exitosamente',
+                      type: SnackBarType.success,
+                    );
+                  }
+                });
               } catch (e) {
+                debugPrint('❌ Error al eliminar: $e');
                 if (mounted) {
                   FloatingSnackBar.show(
                     context,
@@ -242,125 +237,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       ),
     );
   }
-
-  void _showAddTicketDialog(BuildContext context, Event event) {
-    final nameController = TextEditingController();
-    final priceController = TextEditingController();
-    final qtyController = TextEditingController();
-    final maxController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Nueva Tanda de Tickets'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  hintText: 'Ej: Early Bird',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Precio (valor entero)',
-                  hintText: 'Ej: 20',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: qtyController,
-                decoration: const InputDecoration(
-                  labelText: 'Cantidad total',
-                  hintText: 'Ej: 100',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: maxController,
-                decoration: const InputDecoration(
-                  labelText: 'Máximo por persona (opcional)',
-                  hintText: 'Ej: 4',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty ||
-                  priceController.text.isEmpty ||
-                  qtyController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Completa todos los campos')),
-                );
-                return;
-              }
-
-              final ticketType = TicketType(
-                id: const Uuid().v4(),
-                eventId: event.id,
-                name: nameController.text,
-                price: int.parse(priceController.text),
-                totalQuantity: int.parse(qtyController.text),
-                maxPerPurchase: maxController.text.isEmpty
-                    ? null
-                    : int.parse(maxController.text),
-              );
-
-              Navigator.pop(dialogContext);
-
-              try {
-                await ref.read(
-                  createTicketTypeProvider(
-                    CreateTicketTypeParams(
-                      eventId: event.id,
-                      ticketType: ticketType,
-                    ),
-                  ).future,
-                );
-                ref.invalidate(eventTicketsProvider(event.id));
-                ref.invalidate(
-                  eventStatsProvider(event.id),
-                ); // ✅ Refrescar stats
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Tanda creada exitosamente')),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al crear tanda: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Crear'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // -----------------------------------------------------------------------------
-// SECCIÓN 1: HEADER & HERO
+// HEADER
 // -----------------------------------------------------------------------------
 
 class _EventHeader extends StatelessWidget {
@@ -389,7 +269,7 @@ class _EventHeader extends StatelessWidget {
             children: [
               _OutlineButtonSmall(
                 icon: Icons.arrow_back,
-                label: 'Volver al Dashboard',
+                label: 'Volver',
                 onTap: () => context.pop(),
               ),
               const Spacer(),
@@ -488,7 +368,7 @@ class _EventHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// SECCIÓN 2: CARDS CON DATOS REALES
+// CARDS
 // -----------------------------------------------------------------------------
 
 class _QuickActionsCard extends StatelessWidget {
@@ -539,7 +419,9 @@ class _QuickActionsCard extends StatelessWidget {
                   icon: Icons.send_outlined,
                   label: 'Enviar Invitaciones',
                   subtitle: 'Tickets gratuitos',
-                  onTap: () {},
+                  onTap: () {
+                    Scaffold.of(context).openEndDrawer();
+                  },
                 ),
               ),
             ],
@@ -551,7 +433,7 @@ class _QuickActionsCard extends StatelessWidget {
 }
 
 class _CapacityCard extends StatelessWidget {
-  final EventStats stats; // ✅ USA STATS
+  final EventStats stats;
   const _CapacityCard({required this.stats});
 
   @override
@@ -664,7 +546,7 @@ class _CapacityCard extends StatelessWidget {
 }
 
 class _RevenueCard extends StatelessWidget {
-  final EventStats stats; // ✅ USA STATS
+  final EventStats stats;
   const _RevenueCard({required this.stats});
 
   @override
@@ -716,28 +598,21 @@ class _RevenueCard extends StatelessWidget {
   }
 }
 
-class _TicketTiersCard extends StatelessWidget {
+class _TicketCategoriesCard extends StatelessWidget {
   final Event event;
-  final List<TicketType> tickets;
-  final VoidCallback onAddTier;
-  final Function(String) onDeleteTier;
+  final List<TicketCategory> categories;
 
-  const _TicketTiersCard({
-    required this.event,
-    required this.tickets,
-    required this.onAddTier,
-    required this.onDeleteTier,
-  });
+  const _TicketCategoriesCard({required this.event, required this.categories});
 
   @override
   Widget build(BuildContext context) {
     return _DetailCard(
-      title: 'Gestión de Tandas',
+      title: 'Categorías de Tickets',
       icon: Icons.confirmation_number,
       headerAction: FilledButton.icon(
-        onPressed: onAddTier,
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Nueva Tanda'),
+        onPressed: () => context.push('/admin/events/${event.id}/edit'),
+        icon: const Icon(Icons.edit, size: 16),
+        label: const Text('Gestionar'),
         style: FilledButton.styleFrom(
           backgroundColor: EvioLightColors.primary,
           foregroundColor: EvioLightColors.primaryForeground,
@@ -747,117 +622,116 @@ class _TicketTiersCard extends StatelessWidget {
         ),
       ),
       child: Column(
-        children: tickets.isEmpty
+        children: categories.isEmpty
             ? [
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
-                    'No hay tandas creadas aún.',
+                    'No hay categorías configuradas.',
                     style: TextStyle(color: EvioLightColors.mutedForeground),
                   ),
                 ),
               ]
-            : tickets.asMap().entries.map((entry) {
-                final index = entry.key + 1;
-                final ticket = entry.value;
-                final soldCount = ticket.soldQuantity;
-                final isSoldOut = ticket.isSoldOut;
-                final status = isSoldOut ? 'Agotada' : 'Activa';
+            : categories
+                  .map((category) => _CategoryItem(category: category))
+                  .toList(),
+      ),
+    );
+  }
+}
 
-                return Padding(
-                  padding: EdgeInsets.only(bottom: EvioSpacing.md),
-                  child: _TierItem(
-                    number: index,
-                    name: ticket.name,
-                    status: status,
-                    price: '\$${ticket.price}',
-                    sold: soldCount,
-                    total: ticket.totalQuantity,
-                    isActive: !isSoldOut,
-                    isSoldOut: isSoldOut,
-                    onDelete: () => onDeleteTier(ticket.id),
+class _CategoryItem extends StatelessWidget {
+  final TicketCategory category;
+
+  const _CategoryItem({required this.category});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.only(bottom: EvioSpacing.md),
+      padding: EdgeInsets.all(EvioSpacing.md),
+      decoration: BoxDecoration(
+        color: EvioLightColors.muted.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(EvioRadius.lg),
+        border: Border.all(color: EvioLightColors.border, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  category.name,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (category.maxPerPurchase != null)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: EvioLightColors.primary,
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                );
-              }).toList(),
+                  child: Text(
+                    'Máx ${category.maxPerPurchase}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (category.description != null) ...[
+            SizedBox(height: EvioSpacing.xs),
+            Text(
+              category.description!,
+              style: TextStyle(
+                fontSize: 13,
+                color: EvioLightColors.mutedForeground,
+              ),
+            ),
+          ],
+          if (category.tiers.isNotEmpty) ...[
+            SizedBox(height: EvioSpacing.sm),
+            ...category.tiers.asMap().entries.map((entry) {
+              final index = entry.key;
+              final tier = entry.value;
+              final previousTier = index > 0 ? category.tiers[index - 1] : null;
+              return _TierItem(tier: tier, previousTier: previousTier);
+            }),
+          ],
+        ],
       ),
     );
   }
 }
 
 class _TierItem extends StatelessWidget {
-  final int number;
-  final String name;
-  final String status;
-  final String price;
-  final int sold;
-  final int total;
-  final bool isActive;
-  final bool isSoldOut;
-  final VoidCallback onDelete;
+  final TicketTier tier;
+  final TicketTier? previousTier;
 
-  const _TierItem({
-    required this.number,
-    required this.name,
-    required this.status,
-    required this.price,
-    required this.sold,
-    required this.total,
-    required this.isActive,
-    required this.isSoldOut,
-    required this.onDelete,
-  });
+  const _TierItem({required this.tier, this.previousTier});
 
   @override
   Widget build(BuildContext context) {
-    Color borderColor = EvioLightColors.border;
-    Color bgColor = EvioLightColors.muted.withValues(alpha: 0.3);
-    Color progressColor = EvioLightColors.mutedForeground;
-    Color badgeColor = EvioLightColors.mutedForeground;
-
-    if (isSoldOut) {
-      borderColor = EvioLightColors.tierSoldOutBorder;
-      bgColor = EvioLightColors.tierSoldOutBackground.withValues(alpha: 0.5);
-      progressColor = EvioLightColors.destructive;
-      badgeColor = EvioLightColors.destructive;
-    } else if (isActive) {
-      borderColor = EvioLightColors.tierActiveBorder;
-      bgColor = EvioLightColors.primary.withValues(alpha: 0.05);
-      progressColor = EvioLightColors.primary;
-      badgeColor = EvioLightColors.primary;
-    }
-
-    final percent = total > 0 ? sold / total : 0.0;
+    final percent = tier.quantity > 0 ? tier.soldCount / tier.quantity : 0.0;
+    final status = TierStatusInfo.fromTier(tier, previousTier: previousTier);
 
     return Container(
-      padding: EdgeInsets.all(EvioSpacing.md),
+      margin: EdgeInsets.only(bottom: EvioSpacing.xs),
+      padding: EdgeInsets.all(EvioSpacing.sm),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(EvioRadius.lg),
-        border: Border.all(color: borderColor, width: 2),
+        color: status.bgColor,
+        borderRadius: BorderRadius.circular(EvioRadius.xs),
+        border: Border.all(color: status.borderColor),
       ),
       child: Column(
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: EvioLightColors.background,
-                  border: Border.all(color: EvioLightColors.border),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$number',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(width: EvioSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -865,60 +739,56 @@ class _TierItem extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          name,
-                          style: EvioTypography.bodyLarge.copyWith(
+                          tier.name,
+                          style: TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         SizedBox(width: EvioSpacing.xs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: badgeColor,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
+                        TierStatusBadge(status: status),
                       ],
                     ),
-                    Text(
-                      'Precio: $price',
-                      style: TextStyle(
-                        color: EvioLightColors.mutedForeground,
-                        fontSize: 12,
+                    if (tier.description != null)
+                      Text(
+                        tier.description!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: EvioLightColors.mutedForeground,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
-              IconButton(
-                onPressed: onDelete,
-                icon: Icon(
-                  Icons.delete_outline,
-                  size: 20,
-                  color: EvioLightColors.destructive,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              SizedBox(width: EvioSpacing.md),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '\$${tier.price}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: status.priceColor,
+                    ),
+                  ),
+                  Text(
+                    '${tier.soldCount}/${tier.quantity}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: EvioLightColors.mutedForeground,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          SizedBox(height: EvioSpacing.sm),
+          SizedBox(height: EvioSpacing.xs),
           Container(
-            height: 8,
+            height: 6,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: EvioLightColors.secondary.withValues(alpha: 1.0),
+              color: EvioLightColors.secondary,
               borderRadius: BorderRadius.circular(99),
             ),
             child: FractionallySizedBox(
@@ -926,31 +796,11 @@ class _TierItem extends StatelessWidget {
               widthFactor: percent.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: progressColor,
+                  color: status.progressColor,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
             ),
-          ),
-          SizedBox(height: EvioSpacing.xs),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${(percent * 100).round()}% vendido',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: EvioLightColors.mutedForeground,
-                ),
-              ),
-              Text(
-                '${total - sold} disponibles',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: EvioLightColors.mutedForeground,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -965,7 +815,7 @@ class _DJLineupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DetailCard(
-      title: 'Line-up de DJs',
+      title: 'Line-up',
       icon: Icons.music_note,
       child: event.lineup.isEmpty
           ? Center(
@@ -985,21 +835,32 @@ class _DJLineupCard extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: EvioLightColors.primary.withValues(
-                                  alpha: 0.1,
+                            if (artist.imageUrl != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  artist.imageUrl!,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
                                 ),
-                                shape: BoxShape.circle,
+                              )
+                            else
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: EvioLightColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.music_note,
+                                  size: 20,
+                                  color: EvioLightColors.primary,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.music_note,
-                                size: 20,
-                                color: EvioLightColors.primary,
-                              ),
-                            ),
                             SizedBox(width: EvioSpacing.sm),
                             Expanded(
                               child: Text(
@@ -1011,7 +872,7 @@ class _DJLineupCard extends StatelessWidget {
                             ),
                             if (artist.isHeadliner)
                               Container(
-                                padding: const EdgeInsets.symmetric(
+                                padding: EdgeInsets.symmetric(
                                   horizontal: 6,
                                   vertical: 2,
                                 ),
@@ -1019,7 +880,7 @@ class _DJLineupCard extends StatelessWidget {
                                   color: EvioLightColors.primary,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'Headliner',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -1059,16 +920,10 @@ class _ContactCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            event.organizerName ?? 'Pulse Events',
+            event.organizerName ?? 'Evio Club',
             style: EvioTypography.bodyLarge.copyWith(
               fontWeight: FontWeight.w500,
             ),
-          ),
-          SizedBox(height: EvioSpacing.md),
-          _InfoRow(
-            label: 'Teléfono',
-            value: '+34 612 345 678',
-            icon: Icons.phone,
           ),
           SizedBox(height: EvioSpacing.md),
           _InfoRow(
@@ -1083,7 +938,7 @@ class _ContactCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// SECCIÓN 3: WIDGETS GENÉRICOS
+// WIDGETS
 // -----------------------------------------------------------------------------
 
 class _DetailCard extends StatelessWidget {

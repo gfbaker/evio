@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:evio_admin/providers/auth_provider.dart';
+import 'package:evio_admin/providers/storage_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -22,18 +24,138 @@ final eventsProvider = FutureProvider.autoDispose
       );
     });
 
-// Eventos del productor actual (sin filtros, solo del usuario logueado)
+// ✅ CORREGIDO: Eventos del productor actual (filtrado por producer_id, no user.id)
 final currentUserEventsProvider = FutureProvider.autoDispose<List<Event>>((
   ref,
 ) async {
   final repo = ref.watch(eventRepositoryProvider);
   final currentUser = await ref.watch(currentUserProvider.future);
 
-  if (currentUser == null) return [];
+  if (currentUser == null || currentUser.producerId == null) return [];
 
   debugPrint('🔄 Refrescando lista de eventos del usuario...');
+  debugPrint('   Producer ID: ${currentUser.producerId}');
+  
   final allEvents = await repo.getAllEvents();
-  return allEvents.where((e) => e.producerId == currentUser.id).toList();
+  
+  // ✅ CRÍTICO: Filtrar por producer_id, NO por user.id
+  return allEvents.where((e) => e.producerId == currentUser.producerId).toList();
+});
+
+// ⚡ NUEVO: StateNotifier para cache manual y actualizaciones optimistas
+class CurrentUserEventsNotifier extends StateNotifier<AsyncValue<List<Event>>> {
+  final Ref ref;
+  
+  CurrentUserEventsNotifier(this.ref) : super(const AsyncLoading()) {
+    _load();
+  }
+  
+  Future<void> _load() async {
+    state = const AsyncLoading();
+    try {
+      final repo = ref.read(eventRepositoryProvider);
+      final currentUser = await ref.read(currentUserProvider.future);
+      
+      if (currentUser == null || currentUser.producerId == null) {
+        state = const AsyncData([]);
+        return;
+      }
+      
+      debugPrint('🔄 Cargando eventos del productor...');
+      final allEvents = await repo.getAllEvents();
+      final userEvents = allEvents
+          .where((e) => e.producerId == currentUser.producerId)
+          .toList();
+      
+      state = AsyncData(userEvents);
+      debugPrint('✅ Cargados ${userEvents.length} eventos');
+    } catch (e, st) {
+      debugPrint('❌ Error cargando eventos: $e');
+      state = AsyncError(e, st);
+    }
+  }
+  
+  /// Agregar evento sin refetch (optimistic update)
+  void addEvent(Event event) {
+    state.whenData((events) {
+      state = AsyncData([event, ...events]);
+      debugPrint('⚡ Evento agregado optimistically: ${event.title}');
+    });
+  }
+  
+  /// Actualizar evento existente sin refetch
+  void updateEvent(Event updated) {
+    state.whenData((events) {
+      final newEvents = events.map((e) {
+        return e.id == updated.id ? updated : e;
+      }).toList();
+      state = AsyncData(newEvents);
+      debugPrint('⚡ Evento actualizado optimistically: ${updated.title}');
+    });
+  }
+  
+  /// Actualizar solo las URLs de imágenes de un evento (sin rebuild completo)
+  void updateEventImages(String eventId, {
+    String? thumbnailUrl,
+    String? imageUrl,
+    String? fullImageUrl,
+  }) {
+    state.whenData((events) {
+      final newEvents = events.map((e) {
+        if (e.id == eventId) {
+          return Event(
+            id: e.id,
+            producerId: e.producerId,
+            title: e.title,
+            slug: e.slug,
+            mainArtist: e.mainArtist,
+            lineup: e.lineup,
+            startDatetime: e.startDatetime,
+            endDatetime: e.endDatetime,
+            venueName: e.venueName,
+            address: e.address,
+            city: e.city,
+            lat: e.lat,
+            lng: e.lng,
+            genre: e.genre,
+            description: e.description,
+            organizerName: e.organizerName,
+            features: e.features,
+            thumbnailUrl: thumbnailUrl ?? e.thumbnailUrl,
+            imageUrl: imageUrl ?? e.imageUrl,
+            fullImageUrl: fullImageUrl ?? e.fullImageUrl,
+            videoUrl: e.videoUrl,
+            status: e.status,
+            isPublished: e.isPublished,
+            totalCapacity: e.totalCapacity,
+            showAllTicketTypes: e.showAllTicketTypes,
+            createdAt: e.createdAt,
+            updatedAt: e.updatedAt,
+          );
+        }
+        return e;
+      }).toList();
+      state = AsyncData(newEvents);
+      debugPrint('⚡ Imágenes actualizadas para evento: $eventId');
+    });
+  }
+  
+  /// Eliminar evento sin refetch
+  void removeEvent(String eventId) {
+    state.whenData((events) {
+      final newEvents = events.where((e) => e.id != eventId).toList();
+      state = AsyncData(newEvents);
+      debugPrint('⚡ Evento eliminado optimistically: $eventId');
+    });
+  }
+  
+  /// Refrescar manualmente (para pull-to-refresh)
+  Future<void> refresh() => _load();
+}
+
+final currentUserEventsNotifierProvider = 
+    StateNotifierProvider.autoDispose<CurrentUserEventsNotifier, AsyncValue<List<Event>>>((ref) {
+  return CurrentUserEventsNotifier(ref);
 });
 
 // Evento individual por ID
@@ -119,14 +241,7 @@ class EventFormNotifier with ChangeNotifier {
         _setState(EventFormState.fromEvent(event));
         debugPrint('✅ State updated. Title: ${_state.title}');
 
-        // Cargar tickets
-        final ticketTypes = await repo.getEventTicketTypes(eventId);
-
-        if (_isDisposed) return;
-
-        _setState(_state.copyWith(ticketTypes: ticketTypes));
-
-        // Cargar categorías y tiers (nuevo sistema)
+        // Cargar categorías y tiers
         final categories = await repo.getEventTicketCategories(eventId);
 
         if (_isDisposed) return;
@@ -285,82 +400,8 @@ class EventFormNotifier with ChangeNotifier {
     _setState(_state.copyWith(lineup: newLineup));
   }
 
-  void addTicketType({
-    required String name,
-    String? description,
-    required int price,
-    required int quantity,
-    int? maxPerPurchase,
-  }) {
-    if (_isDisposed) return;
-    final newTicket = TicketType(
-      id: const Uuid().v4(),
-      eventId: _eventId ?? '',
-      name: name,
-      description: description,
-      price: price,
-      totalQuantity: quantity,
-      maxPerPurchase: maxPerPurchase,
-      displayOrder: _state.ticketTypes.length, // ✅ Auto-order
-    );
-    final updatedTypes = [..._state.ticketTypes, newTicket];
-    _setState(_state.copyWith(ticketTypes: updatedTypes));
-  }
-
-  void editTicketType({
-    required int index,
-    required String name,
-    String? description,
-    required int price,
-    required int quantity,
-    int? maxPerPurchase,
-  }) {
-    if (_isDisposed) return;
-    final tickets = List<TicketType>.from(_state.ticketTypes);
-    tickets[index] = tickets[index].copyWith(
-      name: name,
-      description: description,
-      price: price,
-      totalQuantity: quantity,
-      maxPerPurchase: maxPerPurchase,
-    );
-    _setState(_state.copyWith(ticketTypes: tickets));
-  }
-
-  void reorderTicketTypes(int oldIndex, int newIndex) {
-    if (_isDisposed) return;
-    final tickets = List<TicketType>.from(_state.ticketTypes);
-    
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-    
-    final ticket = tickets.removeAt(oldIndex);
-    tickets.insert(newIndex, ticket);
-    
-    // ✅ Actualizar displayOrder
-    final reordered = tickets.asMap().entries.map((entry) {
-      return entry.value.copyWith(displayOrder: entry.key);
-    }).toList();
-    
-    _setState(_state.copyWith(ticketTypes: reordered));
-  }
-
-  void removeTicketType(int index) {
-    if (_isDisposed) return;
-    final newTypes = List<TicketType>.from(_state.ticketTypes)..removeAt(index);
-    _setState(_state.copyWith(ticketTypes: newTypes));
-  }
-
-  void toggleTicketTypeActive(int index) {
-    if (_isDisposed) return;
-    final tickets = List<TicketType>.from(_state.ticketTypes);
-    tickets[index] = tickets[index].copyWith(isActive: !tickets[index].isActive);
-    _setState(_state.copyWith(ticketTypes: tickets));
-  }
-
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CATEGORÍAS (nuevo sistema)
+  // CATEGORÍAS Y TIERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   void addCategory({
@@ -470,6 +511,8 @@ class EventFormNotifier with ChangeNotifier {
           description: description,
           price: price,
           quantity: quantity,
+          soldCount: 0, // ✅ AGREGADO
+          isActive: true, // ✅ AGREGADO
           orderIndex: cat.tiers.length,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -643,24 +686,10 @@ class EventFormNotifier with ChangeNotifier {
 
     // ✅ Validación: Eventos "Próximo" deben tener tickets configurados
     if (_state.status == EventStatus.upcoming) {
-      final hasLegacyTickets = _state.ticketTypes.isNotEmpty;
       final hasNewTickets = _state.ticketCategories.isNotEmpty && 
                             _state.ticketCategories.any((cat) => cat.tiers.isNotEmpty);
       
-      // 🔍 DEBUG
-      debugPrint('🔍 DEBUG VALIDACIÓN:');
-      debugPrint('  - ticketCategories.length: ${_state.ticketCategories.length}');
-      debugPrint('  - ticketTypes.length: ${_state.ticketTypes.length}');
-      if (_state.ticketCategories.isNotEmpty) {
-        for (var cat in _state.ticketCategories) {
-          debugPrint('  - Categoría "${cat.name}": ${cat.tiers.length} tiers');
-        }
-      }
-      debugPrint('  - hasLegacyTickets: $hasLegacyTickets');
-      debugPrint('  - hasNewTickets: $hasNewTickets');
-      debugPrint('  - state.isValid: ${_state.isValid}');
-      
-      if (!hasLegacyTickets && !hasNewTickets) {
+      if (!hasNewTickets) {
         _isSaving = false; // ✅ Limpiar flag
         if (_isDisposed) return null;
         _setState(_state.copyWith(
@@ -691,58 +720,21 @@ class EventFormNotifier with ChangeNotifier {
       String? imageUrl = _state.imageUrl;
       String? fullImageUrl = _state.fullImageUrl;
       final eventId = _eventId ?? const Uuid().v4();
+      
+      // 🔥 OPTIMIZACIÓN: Detectar si hubo cambio en las imágenes
+      // ✅ Si hay imageBytes, SIEMPRE considerarlo como nueva imagen
+      final hasNewCroppedImage = _state.imageBytes != null;
+      final hasNewFullImage = _state.fullImageBytes != null;
+      
+      debugPrint('📊 Upload status:');
+      debugPrint('   hasNewCroppedImage: $hasNewCroppedImage');
+      debugPrint('   hasNewFullImage: $hasNewFullImage');
 
-      // 1. SUBIDA DE IMAGEN CROPPEADA (obligatoria)
-      if (_state.imageBytes != null) {
-        debugPrint('📤 Subiendo imagen croppeada a Supabase Storage...');
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}_cropped.jpg';
-        final path = 'events/$eventId/$fileName';
+      // 🔥 PASO 1: GUARDAR EVENTO CON DATOS ACTUALES (URLs anteriores si existen)
+      debugPrint('💾 [EventFormNotifier.save] Creating/Updating event');
+      debugPrint('   producer_id: $producerId');
+      debugPrint('   event_id: $eventId');
 
-        await Supabase.instance.client.storage
-            .from('events')
-            .uploadBinary(
-              path,
-              _state.imageBytes!,
-              fileOptions: const FileOptions(
-                upsert: true,
-                contentType: 'image/jpeg',
-              ),
-            );
-
-        imageUrl = Supabase.instance.client.storage
-            .from('events')
-            .getPublicUrl(path);
-        debugPrint('✅ Imagen croppeada subida: $imageUrl');
-      }
-
-      if (_isDisposed) return null; // ✅ CHECK después de async
-
-      // 1.5 SUBIDA DE IMAGEN COMPLETA (opcional)
-      if (_state.fullImageBytes != null) {
-        debugPrint('📬 Subiendo imagen completa a Supabase Storage...');
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}_full.jpg';
-        final path = 'events/$eventId/$fileName';
-
-        await Supabase.instance.client.storage
-            .from('events')
-            .uploadBinary(
-              path,
-              _state.fullImageBytes!,
-              fileOptions: const FileOptions(
-                upsert: true,
-                contentType: 'image/jpeg',
-              ),
-            );
-
-        fullImageUrl = Supabase.instance.client.storage
-            .from('events')
-            .getPublicUrl(path);
-        debugPrint('✅ Imagen completa subida: $fullImageUrl');
-      }
-
-      if (_isDisposed) return null; // ✅ CHECK después de async
-
-      // 2. CREACIÓN DEL EVENTO
       final event = Event(
         id: eventId,
         producerId: producerId,
@@ -762,8 +754,8 @@ class EventFormNotifier with ChangeNotifier {
         description: _state.description,
         organizerName: _state.organizerName,
         features: _state.features,
-        imageUrl: imageUrl,
-        fullImageUrl: fullImageUrl,
+        imageUrl: imageUrl, // URL anterior o null
+        fullImageUrl: fullImageUrl, // URL anterior o null
         videoUrl: _state.videoUrl,
         totalCapacity: _state.totalCapacity,
         status: _state.status,
@@ -775,13 +767,12 @@ class EventFormNotifier with ChangeNotifier {
           ? await repo.createEvent(event)
           : await repo.updateEvent(event);
 
-      if (_isDisposed) return savedEvent.id; // ✅ CHECK después de async
+      if (_isDisposed) return savedEvent.id;
 
-      // 3. GUARDADO DE CATEGORÍAS Y TIERS (nuevo sistema)
+      // PASO 2: GUARDADO DE CATEGORÍAS Y TIERS
       if (_state.ticketCategories.isNotEmpty) {
         debugPrint('💾 Guardando ${_state.ticketCategories.length} categorías...');
         
-        // Asignar IDs reales a categorías y tiers temporales
         final categoriesWithIds = _state.ticketCategories.map((cat) {
           final categoryId = cat.id.startsWith('temp_') 
               ? const Uuid().v4() 
@@ -814,43 +805,118 @@ class EventFormNotifier with ChangeNotifier {
         debugPrint('  🚀 Llamando a repo.saveTicketCategories()...');
         await repo.saveTicketCategories(savedEvent.id, categoriesWithIds);
         debugPrint('  ✅ Categorías guardadas');
-      } else {
-        debugPrint('⚠️ No hay categorías para guardar');
       }
 
-      if (_isDisposed) return savedEvent.id;
-
-      // 4. GUARDADO DE TICKETS (sistema legacy - deprecated)
-      if (_state.ticketTypes.isNotEmpty) {
-        final ticketsWithEventId = _state.ticketTypes
-            .map((t) => t.copyWith(eventId: savedEvent.id))
-            .toList();
-        await repo.saveEventTicketTypes(savedEvent.id, ticketsWithEventId);
+      // PASO 3: SUBIR IMÁGENES (si hay nuevas) - ✅ CON AWAIT
+      if (hasNewCroppedImage || hasNewFullImage) {
+        debugPrint('📤 Subiendo imágenes (esperando...)...');
+        await _uploadImages(eventId, hasNewCroppedImage, hasNewFullImage);
+        debugPrint('✅ Imágenes subidas correctamente');
       }
-
-      if (_isDisposed) return savedEvent.id; // ✅ CHECK después de async
-
-      // 5. INVALIDAR CACHÉ
-      _ref.invalidate(currentUserEventsProvider);
-      _ref.invalidate(eventsProvider);
-      _ref.invalidate(eventDetailProvider(savedEvent.id));
 
       if (_isDisposed) {
-        _isSaving = false; // ✅ Limpiar flag
+        _isSaving = false;
+        return savedEvent.id;
+      }
+      
+      // PASO 4: OBTENER EVENTO ACTUALIZADO (con URLs de imágenes)
+      final finalEvent = hasNewCroppedImage || hasNewFullImage
+        ? await repo.getEventById(savedEvent.id) ?? savedEvent
+        : savedEvent;
+
+      // PASO 5: ACTUALIZAR CACHE OPTIMISTICALLY (con URLs finales)
+      _ref.read(currentUserEventsNotifierProvider.notifier).addEvent(finalEvent);
+      debugPrint('⚡ Evento agregado al cache con URLs finales');
+
+      if (_isDisposed) {
+        _isSaving = false;
         return savedEvent.id;
       }
 
       _setState(_state.copyWith(isSaving: false));
-      _isSaving = false; // ✅ Limpiar flag
+      _isSaving = false;
+
       return savedEvent.id;
     } catch (e) {
       debugPrint('❌ Error al guardar: $e');
-      _isSaving = false; // ✅ Limpiar flag SIEMPRE
-      if (_isDisposed) return null; // ✅ CHECK
+      _isSaving = false;
+      if (_isDisposed) return null;
       _setState(
         _state.copyWith(isSaving: false, errorMessage: 'Error al guardar: $e'),
       );
       return null;
+    }
+  }
+  
+  // 🔥 Upload de imágenes con thumbnails automáticos
+  Future<void> _uploadImages(
+    String eventId,
+    bool uploadCropped,
+    bool uploadFull,
+  ) async {
+    try {
+      final storageService = _ref.read(storageServiceProvider);
+      
+      if (_state.imageBytes != null) {
+        debugPrint('📤 Procesando y subiendo imágenes con thumbnails...');
+        
+        final urls = await storageService.uploadEventImage(
+          eventId: eventId,
+          imageBytes: _state.imageBytes!,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw TimeoutException('Timeout al subir imágenes');
+          },
+        );
+        
+        debugPrint('✅ Imágenes subidas:');
+        debugPrint('   thumbnail: ${urls.thumbnailUrl}');
+        debugPrint('   medium: ${urls.imageUrl}');
+        debugPrint('   full: ${urls.fullImageUrl}');
+        
+        // Actualizar evento en DB con las 3 URLs
+        final repo = _ref.read(eventRepositoryProvider);
+        final event = await repo.getEventById(eventId);
+        
+        if (event == null) return;
+        
+        final updatedEvent = Event(
+          id: event.id,
+          producerId: event.producerId,
+          title: event.title,
+          slug: event.slug,
+          mainArtist: event.mainArtist,
+          lineup: event.lineup,
+          startDatetime: event.startDatetime,
+          endDatetime: event.endDatetime,
+          venueName: event.venueName,
+          address: event.address,
+          city: event.city,
+          lat: event.lat,
+          lng: event.lng,
+          genre: event.genre,
+          description: event.description,
+          organizerName: event.organizerName,
+          features: event.features,
+          thumbnailUrl: urls.thumbnailUrl,
+          imageUrl: urls.imageUrl,
+          fullImageUrl: urls.fullImageUrl,
+          videoUrl: event.videoUrl,
+          status: event.status,
+          isPublished: event.isPublished,
+          totalCapacity: event.totalCapacity,
+          showAllTicketTypes: event.showAllTicketTypes,
+          createdAt: event.createdAt,
+          updatedAt: DateTime.now(),
+        );
+        
+        await repo.updateEvent(updatedEvent);
+        debugPrint('✅ URLs actualizadas en DB');
+      }
+    } catch (e) {
+      debugPrint('❌ Error subiendo imágenes: $e');
+      rethrow; // Propagar error para que save() lo maneje
     }
   }
 
@@ -872,45 +938,27 @@ final deleteEventProvider = FutureProvider.autoDispose.family<void, String>((
   ref,
   eventId,
 ) async {
-  final repo = ref.watch(eventRepositoryProvider);
-  await repo.deleteEvent(eventId);
-
-  // Invalidar cache para refrescar lista
-  ref.invalidate(currentUserEventsProvider);
-  ref.invalidate(eventsProvider);
+  debugPrint('🔴 [deleteEventProvider] INICIO - eventId: $eventId');
+  
+  try {
+    final repo = ref.watch(eventRepositoryProvider);
+    debugPrint('🔴 [deleteEventProvider] Llamando a repo.deleteEvent()...');
+    
+    await repo.deleteEvent(eventId);
+    
+    debugPrint('🔴 [deleteEventProvider] repo.deleteEvent() completado');
+    
+    // ⚡ Actualizar cache optimistically
+    ref.read(currentUserEventsNotifierProvider.notifier).removeEvent(eventId);
+    
+    debugPrint('✅ [deleteEventProvider] COMPLETADO - Cache actualizado');
+  } catch (e, st) {
+    debugPrint('❌ [deleteEventProvider] ERROR: $e');
+    debugPrint('❌ [deleteEventProvider] Stack: $st');
+    rethrow;
+  }
 });
 
-// ============ TICKET TYPE ACTIONS ============
-
-final createTicketTypeProvider = FutureProvider.autoDispose
-    .family<TicketType, CreateTicketTypeParams>((ref, params) async {
-      final repo = ref.watch(eventRepositoryProvider);
-      final ticketType = await repo.createTicketType(params.ticketType);
-      ref.invalidate(eventDetailProvider(params.eventId));
-      return ticketType;
-    });
-
-final deleteTicketTypeProvider = FutureProvider.autoDispose
-    .family<void, DeleteTicketTypeParams>((ref, params) async {
-      final repo = ref.watch(eventRepositoryProvider);
-      await repo.deleteTicketType(params.ticketTypeId);
-      ref.invalidate(eventDetailProvider(params.eventId));
-    });
-
-// Params classes
-class CreateTicketTypeParams {
-  final String eventId;
-  final TicketType ticketType;
-
-  CreateTicketTypeParams({required this.eventId, required this.ticketType});
-}
-
-class DeleteTicketTypeParams {
-  final String eventId;
-  final String ticketTypeId;
-
-  DeleteTicketTypeParams({required this.eventId, required this.ticketTypeId});
-}
 // ============ EVENT STATS PROVIDER ============
 
 final eventStatsProvider = FutureProvider.autoDispose

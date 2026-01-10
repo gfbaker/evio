@@ -31,12 +31,11 @@ class AdminSidebar extends ConsumerWidget {
                 vertical: EvioSpacing.lg,
               ),
               children: [
-                _buildSectionTitle('MENÚ PRINCIPAL'),
+                _buildSectionTitle('MENÚ PRINCIPAL', Icons.dashboard_outlined),
                 SizedBox(height: EvioSpacing.md),
 
                 _buildMenuItem(
                   context,
-                  icon: Icons.calendar_today,
                   label: 'Eventos',
                   route: '/admin/dashboard',
                   isActive: currentLocation.startsWith('/admin/dashboard'),
@@ -45,7 +44,6 @@ class AdminSidebar extends ConsumerWidget {
 
                 _buildMenuItem(
                   context,
-                  icon: Icons.add,
                   label: 'Crear Evento',
                   route: '/admin/events/new',
                   isActive: currentLocation == '/admin/events/new',
@@ -53,21 +51,43 @@ class AdminSidebar extends ConsumerWidget {
 
                 SizedBox(height: EvioSpacing.xxl),
 
-                _buildSectionTitle('HERRAMIENTAS'),
+                _buildSectionTitle('HERRAMIENTAS', Icons.construction_outlined),
                 SizedBox(height: EvioSpacing.md),
 
                 _buildMenuItem(
                   context,
-                  icon: Icons.bar_chart,
                   label: 'Estadísticas',
                   route: '/admin/statistics',
                   isActive: currentLocation.startsWith('/admin/statistics'),
+                ),
+
+                SizedBox(height: EvioSpacing.xxl),
+
+                _buildSectionTitle('EQUIPO', Icons.people_outline),
+                SizedBox(height: EvioSpacing.md),
+
+                _buildMenuItem(
+                  context,
+                  label: 'Colaboradores',
+                  route: '/admin/team/collaborators',
+                  isActive: currentLocation.startsWith('/admin/team/collaborators'),
                 ),
                 SizedBox(height: EvioSpacing.xs),
 
                 _buildMenuItem(
                   context,
-                  icon: Icons.settings,
+                  label: 'Vendedores',
+                  route: '/admin/team/sellers',
+                  isActive: currentLocation.startsWith('/admin/team/sellers'),
+                ),
+
+                SizedBox(height: EvioSpacing.xxl),
+
+                _buildSectionTitle('AJUSTES', Icons.settings_outlined),
+                SizedBox(height: EvioSpacing.md),
+
+                _buildMenuItem(
+                  context,
                   label: 'Configuración',
                   route: '/admin/settings',
                   isActive: currentLocation.startsWith('/admin/settings'),
@@ -137,25 +157,34 @@ class AdminSidebar extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
       padding: EdgeInsets.only(left: EvioSpacing.sm, bottom: EvioSpacing.md),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w500,
-          color: EvioLightColors.mutedForeground,
-          height: 1.5,
-          letterSpacing: 0.5,
-        ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: EvioLightColors.mutedForeground,
+          ),
+          SizedBox(width: EvioSpacing.xs),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+              color: EvioLightColors.mutedForeground,
+              height: 1.5,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildMenuItem(
     BuildContext context, {
-    required IconData icon,
     required String label,
     required String route,
     required bool isActive,
@@ -178,13 +207,11 @@ class AdminSidebar extends ConsumerWidget {
         child: Container(
           height: 40,
           padding: EdgeInsets.symmetric(
-            horizontal: EvioSpacing.sm,
+            horizontal: EvioSpacing.md,
             vertical: 10,
           ),
           child: Row(
             children: [
-              Icon(icon, size: EvioSpacing.iconS, color: foregroundColor),
-              SizedBox(width: EvioSpacing.sm),
               Text(
                 label,
                 style: TextStyle(
@@ -223,7 +250,7 @@ class AdminSidebar extends ConsumerWidget {
                 backgroundColor: EvioLightColors.muted,
                 child: userAsync.when(
                   data: (user) => Text(
-                    user?.email?.substring(0, 1).toUpperCase() ?? 'U',
+                    user?.email.substring(0, 1).toUpperCase() ?? 'U',
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w500,

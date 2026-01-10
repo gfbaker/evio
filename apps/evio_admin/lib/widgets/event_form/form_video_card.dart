@@ -43,10 +43,10 @@ class _FormVideoCardState extends State<FormVideoCard> {
           Container(
             padding: EdgeInsets.all(EvioSpacing.sm),
             decoration: BoxDecoration(
-              color: EvioLightColors.info.withOpacity(0.1),
+              color: EvioLightColors.info.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(EvioRadius.button),
               border: Border.all(
-                color: EvioLightColors.info.withOpacity(0.3),
+                color: EvioLightColors.info.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
@@ -144,10 +144,10 @@ class _FormVideoCardState extends State<FormVideoCard> {
             Container(
               padding: EdgeInsets.all(EvioSpacing.sm),
               decoration: BoxDecoration(
-                color: EvioLightColors.success.withOpacity(0.1),
+                color: EvioLightColors.success.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(EvioRadius.button),
                 border: Border.all(
-                  color: EvioLightColors.success.withOpacity(0.3),
+                  color: EvioLightColors.success.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(

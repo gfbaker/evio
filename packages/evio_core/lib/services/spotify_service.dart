@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class SpotifyService {
@@ -59,7 +60,7 @@ class SpotifyService {
       );
 
       if (searchResponse.statusCode != 200) {
-        print('Spotify search failed: ${searchResponse.body}');
+        debugPrint('Spotify search failed: ${searchResponse.body}');
         return null;
       }
 
@@ -67,7 +68,7 @@ class SpotifyService {
       final artists = searchData['artists']['items'] as List;
 
       if (artists.isEmpty) {
-        print('No artist found for: $artistName');
+        debugPrint('No artist found for: $artistName');
         return null;
       }
 
@@ -76,14 +77,14 @@ class SpotifyService {
       final images = artist['images'] as List?;
 
       if (images == null || images.isEmpty) {
-        print('No images found for: $artistName');
+        debugPrint('No images found for: $artistName');
         return null;
       }
 
       // Retornar la imagen de mejor calidad (primera en la lista)
       return images[0]['url'] as String?;
     } catch (e) {
-      print('Error fetching Spotify artist image for $artistName: $e');
+      debugPrint('Error fetching Spotify artist image for $artistName: $e');
       return null;
     }
   }

@@ -96,3 +96,29 @@ enum DiscountType {
     );
   }
 }
+
+enum TicketInvitationStatus {
+  pending,
+  assigned,
+  cancelled;
+
+  static TicketInvitationStatus fromString(String value) {
+    return TicketInvitationStatus.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => TicketInvitationStatus.pending,
+    );
+  }
+}
+
+enum TicketTransferStatus {
+  pending,
+  completed,
+  cancelled;
+
+  static TicketTransferStatus fromString(String value) {
+    return TicketTransferStatus.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => TicketTransferStatus.pending,
+    );
+  }
+}

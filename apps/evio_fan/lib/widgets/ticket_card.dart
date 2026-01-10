@@ -75,7 +75,7 @@ class TicketCard extends StatelessWidget {
         ),
         SizedBox(height: EvioSpacing.xs),
         Text(
-          ticket.ticketType?.name ?? 'General',
+          ticket.tier?.name ?? 'General',
           style: EvioTypography.bodyMedium.copyWith(
             color: Colors.white.withValues(alpha: 0.8),
           ),

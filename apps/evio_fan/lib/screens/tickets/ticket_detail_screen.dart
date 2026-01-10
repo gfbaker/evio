@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,8 +9,13 @@ import '../../providers/ticket_provider.dart';
 
 class TicketDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
+  final int initialIndex;
 
-  const TicketDetailScreen({super.key, required this.eventId});
+  const TicketDetailScreen({
+    super.key,
+    required this.eventId,
+    this.initialIndex = 0,
+  });
 
   @override
   ConsumerState<TicketDetailScreen> createState() => _TicketDetailScreenState();
@@ -31,7 +35,8 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageController = PageController(initialPage: widget.initialIndex);
+    _currentIndex = widget.initialIndex;
 
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -59,7 +64,7 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
       _originalBrightness = await ScreenBrightness().current;
       await ScreenBrightness().setScreenBrightness(1.0);
     } catch (e) {
-      debugPrint('Error al aumentar brillo: $e');
+      // Silently fail if brightness control is not available
     }
   }
 
@@ -74,7 +79,7 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
       }
       _brightnessRestored = true;
     } catch (e) {
-      debugPrint('Error al restaurar brillo: $e');
+      // Silently fail if brightness control is not available
     }
   }
 

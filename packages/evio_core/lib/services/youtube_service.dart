@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class YouTubeService {
@@ -24,7 +25,7 @@ class YouTubeService {
       );
 
       if (response.statusCode != 200) {
-        print('YouTube search failed: ${response.body}');
+        debugPrint('YouTube search failed: ${response.body}');
         return null;
       }
 
@@ -32,7 +33,7 @@ class YouTubeService {
       final items = data['items'] as List?;
 
       if (items == null || items.isEmpty) {
-        print('No videos found for: $artistName');
+        debugPrint('No videos found for: $artistName');
         return null;
       }
 
@@ -40,7 +41,7 @@ class YouTubeService {
       final videoId = items[0]['id']['videoId'] as String?;
       return videoId;
     } catch (e) {
-      print('Error fetching YouTube video for $artistName: $e');
+      debugPrint('Error fetching YouTube video for $artistName: $e');
       return null;
     }
   }
@@ -70,7 +71,7 @@ class YouTubeService {
 
       return items[0] as Map<String, dynamic>;
     } catch (e) {
-      print('Error fetching video details: $e');
+      debugPrint('Error fetching video details: $e');
       return null;
     }
   }

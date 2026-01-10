@@ -13,14 +13,12 @@ import '../../widgets/event_form/form_header.dart';
 import '../../widgets/event_form/form_details_card.dart';
 import '../../widgets/event_form/form_location_card.dart';
 import '../../widgets/event_form/form_lineup_card.dart';
-import '../../widgets/event_form/form_capacity_pricing_card.dart';
 import '../../widgets/event_form/ticket_categories_panel.dart';
 import '../../widgets/event_form/form_features_card.dart';
 import '../../widgets/event_form/form_poster_card.dart';
 import '../../widgets/event_form/form_video_card.dart';
 import '../../widgets/event_form/map_picker_dialog.dart';
 import '../../widgets/event_form/live_preview_card.dart';
-import '../../widgets/event_form/live_preview_detail.dart';
 import '../../widgets/event_form/image_cropper_dialog.dart';
 import '../../widgets/common/floating_snackbar.dart';
 
@@ -241,7 +239,20 @@ class EventFormScreen extends HookConsumerWidget {
         return;
       }
 
-      final savedEventId = await notifier.save(producerId: currentUser.id);
+      // ✅ CRÍTICO: Verificar que producerId sea el ID de la tabla producers
+      if (currentUser.producerId == null) {
+        if (!context.mounted) return;
+        FloatingSnackBar.show(
+          context,
+          message: 'Error: Usuario no tiene producer asignado',
+          type: SnackBarType.error,
+        );
+        return;
+      }
+      
+      debugPrint('💾 [saveEvent] Guardando con producer_id: ${currentUser.producerId}');
+
+      final savedEventId = await notifier.save(producerId: currentUser.producerId!);
 
       if (!context.mounted) return;
 
@@ -375,22 +386,22 @@ class EventFormScreen extends HookConsumerWidget {
                               ),
                               SizedBox(height: EvioSpacing.lg),
                               Expanded(
-                                child: RepaintBoundary(
-                                  child: LivePreviewDetail(
-                                  title: state.title,
-                                  mainArtist: state.mainArtist,
-                                  date: state.startDatetime,
-                                  venueName: state.venueName,
-                                  city: state.city,
-                                  description: state.description,
-                                  lineup: state.lineup,
-                                  ticketTypes: state.ticketTypes,
-                                  showAllTicketTypes: state.showAllTicketTypes,
-                                  features: state.features,
-                                  imageBytes: state.imageBytes,
-                                  videoUrl: state.videoUrl,
-                                  lat: state.lat,
-                                  lng: state.lng,
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(EvioSpacing.lg),
+                                    child: LivePreviewCard(
+                                      title: state.title,
+                                      mainArtist: state.mainArtist,
+                                      date: state.startDatetime,
+                                      venue: state.venueName,
+                                      city: state.city,
+                                      description: state.description,
+                                      organizerName: state.organizerName,
+                                      lineup: state.lineup,
+                                      categories: state.ticketCategories,
+                                      imageBytes: state.imageBytes,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -428,10 +439,14 @@ class EventFormScreen extends HookConsumerWidget {
                         SizedBox(height: EvioSpacing.md),
                         LivePreviewCard(
                           title: state.title,
+                          mainArtist: state.mainArtist,
                           date: state.startDatetime,
                           venue: state.venueName,
                           city: state.city,
-                          price: priceCtrl.text,
+                          description: state.description,
+                          organizerName: state.organizerName,
+                          lineup: state.lineup,
+                          categories: state.ticketCategories,
                           imageBytes: state.imageBytes,
                         ),
                       ],

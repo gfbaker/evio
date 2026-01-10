@@ -38,7 +38,7 @@ final orderByIdProvider = FutureProvider.family.autoDispose<Order?, String>((
 /// Estado del carrito
 class CartState {
   final String? eventId;
-  final Map<String, int> items; // ticketTypeId -> quantity
+  final Map<String, int> items; // tierId -> quantity
   final String? couponCode;
   final int? discountAmount;
 
@@ -79,34 +79,34 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  void addItem(String ticketTypeId, {int quantity = 1}) {
-    final currentQty = state.items[ticketTypeId] ?? 0;
+  void addItem(String tierId, {int quantity = 1}) {
+    final currentQty = state.items[tierId] ?? 0;
     final newItems = Map<String, int>.from(state.items);
-    newItems[ticketTypeId] = currentQty + quantity;
+    newItems[tierId] = currentQty + quantity;
     state = state.copyWith(items: newItems);
   }
 
-  void removeItem(String ticketTypeId, {int quantity = 1}) {
-    final currentQty = state.items[ticketTypeId] ?? 0;
+  void removeItem(String tierId, {int quantity = 1}) {
+    final currentQty = state.items[tierId] ?? 0;
     final newQty = currentQty - quantity;
     final newItems = Map<String, int>.from(state.items);
 
     if (newQty <= 0) {
-      newItems.remove(ticketTypeId);
+      newItems.remove(tierId);
     } else {
-      newItems[ticketTypeId] = newQty;
+      newItems[tierId] = newQty;
     }
 
     state = state.copyWith(items: newItems);
   }
 
-  void setQuantity(String ticketTypeId, int quantity) {
+  void setQuantity(String tierId, int quantity) {
     final newItems = Map<String, int>.from(state.items);
 
     if (quantity <= 0) {
-      newItems.remove(ticketTypeId);
+      newItems.remove(tierId);
     } else {
-      newItems[ticketTypeId] = quantity;
+      newItems[tierId] = quantity;
     }
 
     state = state.copyWith(items: newItems);
@@ -138,10 +138,10 @@ class CheckoutController extends AutoDisposeAsyncNotifier<void> {
   @override
   FutureOr<void> build() async {}
 
-  /// Crear orden con validación atómica
+  /// Crear orden con validación atómica (nuevo sistema con tiers)
   Future<String?> createOrderSafe({
     required String eventId,
-    required Map<String, int> ticketQuantities,
+    required Map<String, int> tierQuantities,
   }) async {
     state = const AsyncValue.loading();
 
@@ -153,18 +153,18 @@ class CheckoutController extends AutoDisposeAsyncNotifier<void> {
         throw OrderException.unauthorized();
       }
 
-      // 2. Llamar función segura
+      // 2. Llamar función segura V2 (con tiers)
       final repository = ref.read(orderRepositoryProvider);
       final orderId = await repository.createOrderSafe(
         userId: currentUser.id,
         eventId: eventId,
-        ticketQuantities: ticketQuantities,
+        tierQuantities: tierQuantities,
       );
 
       state = const AsyncValue.data(null);
 
       // 3. Invalidar caches
-      ref.invalidate(ticketTypesProvider(eventId));
+      ref.invalidate(eventTicketCategoriesProvider(eventId));
       ref.invalidate(myOrdersProvider);
 
       return orderId;
@@ -266,7 +266,7 @@ Future<void> saveCheckoutSession(WidgetRef ref, String eventId) async {
   if (cart.isEmpty) return;
 
   final items = cart.items.entries
-      .map((e) => {'ticket_type_id': e.key, 'quantity': e.value})
+      .map((e) => {'tier_id': e.key, 'quantity': e.value})
       .toList();
 
   await repository.saveCheckoutSession(eventId: eventId, items: items);
@@ -284,8 +284,9 @@ Future<void> restoreCheckoutSession(WidgetRef ref, String eventId) async {
 
   final items = session['items'] as List;
   for (final item in items) {
-    final ticketTypeId = item['ticket_type_id'] as String;
+    // Soportar tanto tier_id (nuevo) como ticket_type_id (legacy)
+    final tierId = item['tier_id'] as String? ?? item['ticket_type_id'] as String;
     final quantity = item['quantity'] as int;
-    cartNotifier.setQuantity(ticketTypeId, quantity);
+    cartNotifier.setQuantity(tierId, quantity);
   }
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/common/floating_snackbar.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -42,11 +43,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context.go('/admin/dashboard');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: EvioLightColors.destructive,
-        ),
+      FloatingSnackBar.show(
+        context,
+        message: e.toString(),
+        type: SnackBarType.error,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

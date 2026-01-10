@@ -26,6 +26,8 @@ dependencies:
   shimmer: ^3.0.0
   riverpod_annotation: ^2.6.1
   geolocator: ^13.0.2
+  cached_network_image: ^3.3.0
+  image_picker: ^1.0.7
 
 dev_dependencies:
   flutter_test:
@@ -36,3 +38,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Assets
+  assets:
+    - assets/images/

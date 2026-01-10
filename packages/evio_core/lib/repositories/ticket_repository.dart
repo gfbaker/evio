@@ -1,75 +1,19 @@
 import 'package:evio_core/services/supabase_service.dart';
 import 'package:evio_core/models/ticket.dart';
-import 'package:evio_core/models/ticket_type.dart';
 
 class TicketRepository {
   final _client = SupabaseService.client;
 
   // ============================================
-  // TICKET TYPES (LOTES)
+  // TICKET TYPES/TIERS - DEPRECATED
   // ============================================
-
-  /// Obtener tipos de ticket de un evento
-  Future<List<TicketType>> getTicketTypes(String eventId) async {
-    final response = await _client
-        .from('ticket_types')
-        .select()
-        .eq('event_id', eventId)
-        .order('sort_order', ascending: true);
-
-    return (response as List).map((e) => TicketType.fromJson(e)).toList();
-  }
-
-  /// Obtener tipos de ticket disponibles (con stock y en venta)
-  Future<List<TicketType>> getAvailableTicketTypes(String eventId) async {
-    final now = DateTime.now().toIso8601String();
-
-    final response = await _client
-        .from('ticket_types')
-        .select()
-        .eq('event_id', eventId)
-        .eq('is_invitation_only', false)
-        .lt('sold_quantity', 'total_quantity')
-        .or('sale_start_at.is.null,sale_start_at.lte.$now')
-        .or('sale_end_at.is.null,sale_end_at.gte.$now')
-        .order('sort_order', ascending: true);
-
-    return (response as List).map((e) => TicketType.fromJson(e)).toList();
-  }
-
-  /// Crear tipo de ticket (producer)
-  Future<TicketType> createTicketType(TicketType ticketType) async {
-    final response = await _client
-        .from('ticket_types')
-        .insert(ticketType.toJson())
-        .select()
-        .single();
-
-    return TicketType.fromJson(response);
-  }
-
-  /// Actualizar tipo de ticket
-  Future<TicketType> updateTicketType(TicketType ticketType) async {
-    final response = await _client
-        .from('ticket_types')
-        .update(ticketType.toJson())
-        .eq('id', ticketType.id)
-        .select()
-        .single();
-
-    return TicketType.fromJson(response);
-  }
-
-  /// Eliminar tipo de ticket
-  Future<void> deleteTicketType(String id) async {
-    await _client.from('ticket_types').delete().eq('id', id);
-  }
+  // Los métodos de gestión de ticket types están deprecated.
+  // Usar EventRepository.getEventTicketCategories() para el nuevo sistema.
 
   // ============================================
   // TICKETS INDIVIDUALES
   // ============================================
 
-  /// Obtener mis tickets
   /// Obtener mis tickets
   Future<List<Ticket>> getMyTickets({
     bool includeUsed = false,
@@ -93,7 +37,7 @@ class TicketRepository {
               .select('''
             *,
             event:events(*),
-            ticket_type:ticket_types(*)
+            tier:ticket_tiers(*)
           ''')
               .eq('owner_id', dbUserId)
               .order('created_at', ascending: false)
@@ -102,13 +46,34 @@ class TicketRepository {
               .select('''
             *,
             event:events(*),
-            ticket_type:ticket_types(*)
+            tier:ticket_tiers(*)
           ''')
               .eq('owner_id', dbUserId)
               .eq('status', 'valid')
               .order('created_at', ascending: false);
 
-    return (response as List).map((e) => Ticket.fromJson(e)).toList();
+    // 🟠 DEBUG: Mostrar datos raw
+    print('🟠 DEBUG: Tickets response:');
+    for (var ticket in (response as List)) {
+      print('Ticket ID: ${ticket['id']}');
+      print('Event: ${ticket['event']}');
+      print('Tier: ${ticket['tier']}');
+      print('---');
+    }
+
+    // Parsear con manejo de errores
+    final List<Ticket> tickets = [];
+    for (var ticketJson in (response as List)) {
+      try {
+        tickets.add(Ticket.fromJson(ticketJson));
+      } catch (e, stackTrace) {
+        print('❌ Error parseando ticket ${ticketJson['id']}: $e');
+        print('❌ Stack: $stackTrace');
+        print('❌ JSON completo: $ticketJson');
+        rethrow;
+      }
+    }
+    return tickets;
   }
 
   /// Obtener ticket por ID
@@ -118,7 +83,7 @@ class TicketRepository {
         .select('''
           *,
           event:events(*),
-          ticket_type:ticket_types(*)
+          tier:ticket_tiers(*)
         ''')
         .eq('id', id)
         .maybeSingle();
@@ -134,7 +99,7 @@ class TicketRepository {
         .select('''
           *,
           event:events(*),
-          ticket_type:ticket_types(*),
+          tier:ticket_tiers(*),
           owner:users(*)
         ''')
         .eq('qr_secret', qrSecret)
@@ -213,11 +178,14 @@ class TicketRepository {
   // TRANSFERENCIAS
   // ============================================
 
-  /// Transferir ticket
+  // ============================================
+  // TRANSFERENCIAS V2 (con ticket_transfers)
+  // ============================================
+
+  /// Transferir ticket directamente (sin pending)
   Future<Ticket> transferTicket({
     required String ticketId,
-    required String toEmail,
-    String? message,
+    required String toUserId,
   }) async {
     final fromUserId = _client.auth.currentUser?.id;
     if (fromUserId == null) throw Exception('Usuario no autenticado');
@@ -230,6 +198,15 @@ class TicketRepository {
         .single();
 
     final dbFromUserId = fromUserResponse['id'] as String;
+
+    // Obtener email del usuario destino
+    final toUserResponse = await _client
+        .from('users')
+        .select('email')
+        .eq('id', toUserId)
+        .single();
+
+    final toUserEmail = toUserResponse['email'] as String;
 
     // Verificar que el ticket existe y le pertenece
     final ticket = await getTicketById(ticketId);
@@ -249,30 +226,141 @@ class TicketRepository {
       throw Exception('Solo se pueden transferir tickets válidos');
     }
 
-    // Buscar usuario destino
-    final toUserResponse = await _client
-        .from('users')
-        .select('id')
-        .eq('email', toEmail)
-        .maybeSingle();
-
-    final toUserId = toUserResponse?['id'] as String?;
-
-    // Crear invitación
-    await _client.from('invitations').insert({
+    // Crear registro en ticket_transfers
+    await _client.from('ticket_transfers').insert({
       'ticket_id': ticketId,
       'from_user_id': dbFromUserId,
       'to_user_id': toUserId,
-      'to_email': toEmail,
-      'transfer_allowed': ticket.transferAllowed,
-      'message': message,
-      'status': 'pending',
-      'created_at': DateTime.now().toIso8601String(),
+      'to_email': toUserEmail, // ✅ Campo obligatorio
+      'status': 'completed',
+      'completed_at': DateTime.now().toIso8601String(),
     });
 
-    // TODO: Enviar email/notificación
+    // Transferir ownership del ticket
+    await _client.from('tickets').update({
+      'owner_id': toUserId,
+      'transfer_count': ticket.transferCount + 1,
+    }).eq('id', ticketId);
 
-    return ticket;
+    // Retornar ticket actualizado
+    final updatedTicket = await getTicketById(ticketId);
+    return updatedTicket!;
+  }
+
+  /// Recuperar ticket transferido (cancelar transferencia)
+  Future<Ticket> recoverTransferredTicket(String ticketId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw Exception('Usuario no autenticado');
+
+    final userResponse = await _client
+        .from('users')
+        .select('id')
+        .eq('auth_provider_id', userId)
+        .single();
+
+    final dbUserId = userResponse['id'] as String;
+
+    // Buscar última transferencia del ticket
+    final transferResponse = await _client
+        .from('ticket_transfers')
+        .select('*')
+        .eq('ticket_id', ticketId)
+        .eq('from_user_id', dbUserId)
+        .eq('status', 'completed')
+        .order('completed_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    if (transferResponse == null) {
+      throw Exception('No se encontró transferencia para recuperar');
+    }
+
+    // Verificar que el ticket no haya sido usado
+    final ticket = await getTicketById(ticketId);
+    if (ticket == null) {
+      throw Exception('Ticket no encontrado');
+    }
+
+    if (ticket.status.name != 'valid') {
+      throw Exception('Solo se pueden recuperar tickets válidos');
+    }
+
+    // Cancelar transferencia
+    await _client.from('ticket_transfers').update({
+      'status': 'cancelled',
+      'cancelled_at': DateTime.now().toIso8601String(),
+    }).eq('id', transferResponse['id']);
+
+    // Devolver ownership al usuario original
+    await _client.from('tickets').update({
+      'owner_id': dbUserId,
+    }).eq('id', ticketId);
+
+    // Retornar ticket actualizado
+    final updatedTicket = await getTicketById(ticketId);
+    return updatedTicket!;
+  }
+
+  /// Cancelar transferencia pendiente
+  Future<void> cancelTransfer(String transferId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw Exception('Usuario no autenticado');
+
+    final userResponse = await _client
+        .from('users')
+        .select('id')
+        .eq('auth_provider_id', userId)
+        .single();
+
+    final dbUserId = userResponse['id'] as String;
+
+    // Obtener la transferencia
+    final transfer = await _client
+        .from('ticket_transfers')
+        .select('*')
+        .eq('id', transferId)
+        .eq('from_user_id', dbUserId)
+        .single();
+
+    if (transfer['status'] != 'pending') {
+      throw Exception('Solo se pueden cancelar transferencias pendientes');
+    }
+
+    // Cancelar transferencia
+    await _client.from('ticket_transfers').update({
+      'status': 'cancelled',
+      'cancelled_at': DateTime.now().toIso8601String(),
+    }).eq('id', transferId);
+  }
+
+  /// Obtener transferencias pendientes del usuario
+  Future<List<Map<String, dynamic>>> getPendingTransfers() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw Exception('Usuario no autenticado');
+
+    final userResponse = await _client
+        .from('users')
+        .select('id')
+        .eq('auth_provider_id', userId)
+        .single();
+
+    final dbUserId = userResponse['id'] as String;
+
+    final response = await _client
+        .from('ticket_transfers')
+        .select('''
+          *,
+          ticket:tickets(
+            *,
+            event:events(*),
+            tier:ticket_tiers(*)
+          )
+        ''')
+        .eq('from_user_id', dbUserId)
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+
+    return (response as List).cast<Map<String, dynamic>>();
   }
 
   /// Aceptar invitación
@@ -385,7 +473,7 @@ class TicketRepository {
         .from('tickets')
         .select('''
           *,
-          ticket_type:ticket_types(*),
+          tier:ticket_tiers(*),
           owner:users(*),
           entry:entries(*)
         ''')

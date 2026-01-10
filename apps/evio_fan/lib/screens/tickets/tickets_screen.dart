@@ -18,10 +18,11 @@ class _TicketsScreenState extends ConsumerState<TicketsScreen> {
   void initState() {
     super.initState();
     
-    // ✅ PREFETCH: Cargar tickets en background
+    // ✅ REFRESH: Invalidar cache y recargar siempre que se monta la pantalla
+    // Esto cubre: compras, transferencias, tickets free, etc.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(myActiveTicketsProvider);
+      ref.invalidate(myActiveTicketsProvider);
     });
   }
 
@@ -30,8 +31,9 @@ class _TicketsScreenState extends ConsumerState<TicketsScreen> {
     final ticketsAsync = ref.watch(myActiveTicketsProvider);
 
     return Scaffold(
-      backgroundColor: EvioFanColors.background,
-      body: SafeArea(
+      body: Container(
+        decoration: EvioBackgrounds.screenBackground(EvioFanColors.background),
+        child: SafeArea(
         child: ticketsAsync.when(
           data: (tickets) {
             if (tickets.isEmpty) {
@@ -170,6 +172,7 @@ class _TicketsScreenState extends ConsumerState<TicketsScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -241,7 +244,7 @@ class _TicketListItem extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        context.push('/ticket-detail/$eventId');
+        context.push('/event-tickets/$eventId');
       },
       child: Container(
         padding: EdgeInsets.all(EvioSpacing.md),

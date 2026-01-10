@@ -18,8 +18,7 @@ class EventFormState {
   final String? organizerName;
   final int? totalCapacity;
   final List<LineupArtist> lineup;
-  final List<TicketType> ticketTypes; // ⚠️ DEPRECATED - Usar ticketCategories
-  final List<TicketCategory> ticketCategories; // ✅ NUEVO
+  final List<TicketCategory> ticketCategories;
   final List<String> features;
   final Uint8List? imageBytes;        // Imagen croppeada
   final String? imageUrl;             // URL imagen croppeada
@@ -48,7 +47,6 @@ class EventFormState {
     this.organizerName,
     this.totalCapacity,
     required this.lineup,
-    required this.ticketTypes,
     required this.ticketCategories,
     required this.features,
     this.imageBytes,
@@ -80,9 +78,8 @@ class EventFormState {
       organizerName: null,
       totalCapacity: null,
       lineup: [],
-      ticketTypes: [], // Deprecated
       ticketCategories: [],
-      features: [],
+      features:[],
       imageBytes: null,
       imageUrl: null,
       fullImageBytes: null,
@@ -113,7 +110,6 @@ class EventFormState {
       organizerName: event.organizerName,
       totalCapacity: event.totalCapacity,
       lineup: event.lineup,
-      ticketTypes: [], // Deprecated
       ticketCategories: [], // TODO: Load from DB
       features: event.features ?? [],
       imageBytes: null,
@@ -201,7 +197,6 @@ class EventFormState {
     String? contactPhone,
     int? totalCapacity,
     List<LineupArtist>? lineup,
-    List<TicketType>? ticketTypes, // Deprecated
     List<TicketCategory>? ticketCategories,
     List<String>? features,
     Uint8List? imageBytes,
@@ -231,7 +226,6 @@ class EventFormState {
       organizerName: organizerName ?? this.organizerName,
       totalCapacity: totalCapacity ?? this.totalCapacity,
       lineup: lineup ?? this.lineup,
-      ticketTypes: ticketTypes ?? this.ticketTypes,
       ticketCategories: ticketCategories ?? this.ticketCategories,
       features: features ?? this.features,
       imageBytes: imageBytes ?? this.imageBytes,

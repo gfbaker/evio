@@ -161,7 +161,8 @@ class DashboardScreen extends ConsumerWidget {
 - `users` - Usuarios (fans + productores)
 - `producers` - Productoras/Organizadores
 - `events` - Eventos
-- `ticket_types` - Tandas de tickets
+- `ticket_categories` - Categorías de tickets (General, VIP, etc)
+- `ticket_tiers` - Tandas por categoría (Early Bird, Regular, etc)
 - `tickets` - Entradas individuales
 - `orders` - Órdenes de compra
 - `coupons` - Cupones de descuento
@@ -196,7 +197,7 @@ class DashboardScreen extends ConsumerWidget {
 |--------|----------|--------|
 | **evio_core** | 95% | ✅ Design system, models, repos completos |
 | **evio_admin** | 90% | ✅ Auth, CRUD eventos, settings, stats |
-| **evio_fan** | 30% | 🚧 Home + Event Detail completos, checkout en progreso |
+| **evio_fan** | 75% | ✅ Home, Detail, Checkout, Tickets (QR), Auth flow completos |
 
 ---
 
@@ -231,21 +232,20 @@ import '../../widgets/stat_card.dart';
 
 ## ⚠️ ISSUES CONOCIDOS
 
-1. **Checkout flow incompleto** (evio_fan) - En progreso
-2. **Image upload temporal** - Solo guarda bytes en memoria
-3. **MapPicker es mock** - 3 ubicaciones hardcodeadas
-4. **Getters pendientes:** `Event.soldCount`, `minPrice`, `maxPrice`
+1. **MapPicker es mock** - 3 ubicaciones hardcodeadas
+2. **Mercado Pago pendiente** - Usando mock payment flow
+3. **Apple Wallet pendiente** - Tickets iOS sin passes nativos
 
 ---
 
 ## 🚀 PRÓXIMOS PASOS
 
-1. **Completar checkout** (evio_fan) - Integrar con orders
-2. **Image upload** - Supabase Storage
-3. **Google Maps** - Reemplazar MapPickerDialog mock
-4. **Statistics** - Implementar getters con JOINs reales
+1. **Mercado Pago** - Integrar pagos reales (actualmente mock)
+2. **Google Maps** - Reemplazar MapPickerDialog mock
+3. **Apple Wallet** - Generar passes para tickets iOS
+4. **evio_scanner** - App para validación QR en puerta
 
 ---
 
-**Última actualización:** 22 Diciembre 2025  
-**Versión:** 2.0
+**Última actualización:** 6 Enero 2026  
+**Versión:** 3.0

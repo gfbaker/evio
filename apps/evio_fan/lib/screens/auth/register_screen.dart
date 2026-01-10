@@ -76,6 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: EvioFanColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -87,25 +88,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(height: EvioSpacing.xl),
+                SizedBox(height: EvioSpacing.xxxl),
 
                 // Logo
                 Text(
                   'EVIO',
-                  style: EvioTypography.displayMedium.copyWith(
-                    color: EvioDarkColors.primary,
+                  style: EvioTypography.displayLarge.copyWith(
+                    color: EvioFanColors.primary,
                     letterSpacing: 8,
                   ),
                   textAlign: TextAlign.center,
                 ),
 
-                SizedBox(height: EvioSpacing.xxl),
+                SizedBox(height: EvioSpacing.xs),
+
+                Text(
+                  'CLUB',
+                  style: EvioTypography.titleLarge.copyWith(
+                    color: EvioFanColors.mutedForeground,
+                    letterSpacing: 12,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                SizedBox(height: EvioSpacing.xxxl),
 
                 // Título
                 Text(
                   'Crear Cuenta',
                   style: EvioTypography.titleLarge.copyWith(
-                    color: EvioDarkColors.textPrimary,
+                    color: EvioFanColors.foreground,
                   ),
                 ),
 
@@ -114,7 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Text(
                   'Completá tus datos para registrarte',
                   style: EvioTypography.bodyMedium.copyWith(
-                    color: EvioDarkColors.textSecondary,
+                    color: EvioFanColors.mutedForeground,
                   ),
                 ),
 
@@ -125,25 +137,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Container(
                     padding: EdgeInsets.all(EvioSpacing.md),
                     decoration: BoxDecoration(
-                      color: EvioDarkColors.error.withValues(alpha: 0.1),
-                      borderRadius: EvioRadius.cardRadius,
+                      color: EvioFanColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(EvioRadius.card),
                       border: Border.all(
-                        color: EvioDarkColors.error.withValues(alpha: 0.3),
+                        color: EvioFanColors.error.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.error_outline,
-                          color: EvioDarkColors.error,
-                          size: EvioSpacing.iconSize,
+                          color: EvioFanColors.error,
+                          size: EvioSpacing.iconM,
                         ),
                         SizedBox(width: EvioSpacing.sm),
                         Expanded(
                           child: Text(
                             _error!,
                             style: EvioTypography.bodyMedium.copyWith(
-                              color: EvioDarkColors.error,
+                              color: EvioFanColors.error,
                             ),
                           ),
                         ),
@@ -161,14 +173,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: _nameController,
                         textCapitalization: TextCapitalization.words,
                         style: EvioTypography.bodyLarge.copyWith(
-                          color: EvioDarkColors.textPrimary,
+                          color: EvioFanColors.foreground,
                         ),
                         decoration: InputDecoration(
                           labelText: 'Nombre',
                           hintText: 'Juan',
                           prefixIcon: Icon(
                             Icons.person_outline,
-                            color: EvioDarkColors.textSecondary,
+                            color: EvioFanColors.mutedForeground,
+                          ),
+                          filled: true,
+                          fillColor: EvioFanColors.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(EvioRadius.input),
+                            borderSide: BorderSide(color: EvioFanColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(EvioRadius.input),
+                            borderSide: BorderSide(color: EvioFanColors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(EvioRadius.input),
+                            borderSide: BorderSide(
+                              color: EvioFanColors.primary,
+                              width: 2,
+                            ),
                           ),
                         ),
                         validator: (value) {
@@ -185,11 +214,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: _surnameController,
                         textCapitalization: TextCapitalization.words,
                         style: EvioTypography.bodyLarge.copyWith(
-                          color: EvioDarkColors.textPrimary,
+                          color: EvioFanColors.foreground,
                         ),
                         decoration: InputDecoration(
                           labelText: 'Apellido',
                           hintText: 'Pérez',
+                          filled: true,
+                          fillColor: EvioFanColors.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(EvioRadius.input),
+                            borderSide: BorderSide(color: EvioFanColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(EvioRadius.input),
+                            borderSide: BorderSide(color: EvioFanColors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(EvioRadius.input),
+                            borderSide: BorderSide(
+                              color: EvioFanColors.primary,
+                              width: 2,
+                            ),
+                          ),
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -210,14 +256,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
                   style: EvioTypography.bodyLarge.copyWith(
-                    color: EvioDarkColors.textPrimary,
+                    color: EvioFanColors.foreground,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Email',
                     hintText: 'tu@email.com',
                     prefixIcon: Icon(
                       Icons.email_outlined,
-                      color: EvioDarkColors.textSecondary,
+                      color: EvioFanColors.mutedForeground,
+                    ),
+                    filled: true,
+                    fillColor: EvioFanColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(color: EvioFanColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(color: EvioFanColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(
+                        color: EvioFanColors.primary,
+                        width: 2,
+                      ),
                     ),
                   ),
                   validator: (value) {
@@ -238,27 +301,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   style: EvioTypography.bodyLarge.copyWith(
-                    color: EvioDarkColors.textPrimary,
+                    color: EvioFanColors.foreground,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     hintText: '••••••••',
                     prefixIcon: Icon(
                       Icons.lock_outline,
-                      color: EvioDarkColors.textSecondary,
+                      color: EvioFanColors.mutedForeground,
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
-                        color: EvioDarkColors.textSecondary,
+                        color: EvioFanColors.mutedForeground,
                       ),
                       onPressed: () {
                         setState(() {
                           _obscurePassword = !_obscurePassword;
                         });
                       },
+                    ),
+                    filled: true,
+                    fillColor: EvioFanColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(color: EvioFanColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(color: EvioFanColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(
+                        color: EvioFanColors.primary,
+                        width: 2,
+                      ),
                     ),
                   ),
                   validator: (value) {
@@ -279,27 +359,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
                   style: EvioTypography.bodyLarge.copyWith(
-                    color: EvioDarkColors.textPrimary,
+                    color: EvioFanColors.foreground,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Confirmar Contraseña',
                     hintText: '••••••••',
                     prefixIcon: Icon(
                       Icons.lock_outline,
-                      color: EvioDarkColors.textSecondary,
+                      color: EvioFanColors.mutedForeground,
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirmPassword
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
-                        color: EvioDarkColors.textSecondary,
+                        color: EvioFanColors.mutedForeground,
                       ),
                       onPressed: () {
                         setState(() {
                           _obscureConfirmPassword = !_obscureConfirmPassword;
                         });
                       },
+                    ),
+                    filled: true,
+                    fillColor: EvioFanColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(color: EvioFanColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(color: EvioFanColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
+                      borderSide: BorderSide(
+                        color: EvioFanColors.primary,
+                        width: 2,
+                      ),
                     ),
                   ),
                   validator: (value) {
@@ -317,16 +414,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Register button
                 SizedBox(
-                  height: EvioSpacing.buttonHeightLarge,
-                  child: FilledButton(
+                  height: 48,
+                  child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleRegister,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: EvioFanColors.primary,
+                      foregroundColor: EvioFanColors.primaryForeground,
+                      disabledBackgroundColor: EvioFanColors.mutedForeground
+                          .withValues(alpha: 0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(EvioRadius.button),
+                      ),
+                    ),
                     child: _isLoading
                         ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: EvioDarkColors.primaryForeground,
+                              color: EvioFanColors.primaryForeground,
                             ),
                           )
                         : Text('Crear Cuenta', style: EvioTypography.button),
@@ -342,7 +448,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Text(
                       '¿Ya tenés cuenta? ',
                       style: EvioTypography.bodyMedium.copyWith(
-                        color: EvioDarkColors.textSecondary,
+                        color: EvioFanColors.mutedForeground,
                       ),
                     ),
                     TextButton(
@@ -350,7 +456,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Text(
                         'Iniciá Sesión',
                         style: EvioTypography.button.copyWith(
-                          color: EvioDarkColors.primary,
+                          color: EvioFanColors.primary,
                         ),
                       ),
                     ),

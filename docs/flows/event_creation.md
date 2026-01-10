@@ -22,7 +22,7 @@ Usuario completa 6 cards del formulario:
     1. Detalles (título, artista, género, organizador, descripción)
     2. Ubicación (fecha, hora, venue, ciudad, mapa)
     3. Line-up (DJs con toggle headliner)
-    4. Tandas (precio, cantidad, max por persona)
+    4. Categorías y Tandas (categorías con tiers: precio, cantidad, fechas)
     5. Features (tags seleccionables)
     6. Imagen (upload + crop)
     ↓
@@ -37,7 +37,7 @@ Validación condicional por status:
     ↓
 Si válido → Provider llama repository
     ↓
-Repository guarda en Supabase (events + ticket_types)
+Repository guarda en Supabase (events + ticket_categories + ticket_tiers)
     ↓
 Navegación automática a /events/:id
 ```
@@ -322,18 +322,33 @@ if (status == EventStatus.upcoming && startDate.isBefore(DateTime.now())) {
 
 ```dart
 Future<void> saveEvent() async {
-  // 1. Guardar evento
-  await _client.from('events').insert(event.toJson());
+  // 1. Upload imagen (genera thumbnails automáticos)
+  final imageUrls = await storageService.uploadEventImage(eventId, imageBytes);
   
-  // 2. Guardar ticket types
-  for (final ticket in ticketTypes) {
-    await _client.from('ticket_types').insert(ticket.toJson());
+  // 2. Guardar evento
+  await _client.from('events').upsert({
+    ...event.toJson(),
+    'image_url': imageUrls.medium,
+    'thumbnail_url': imageUrls.thumb,
+    'full_image_url': imageUrls.full,
+  });
+  
+  // 3. Guardar categorías y tiers
+  for (final category in categories) {
+    await _client.from('ticket_categories').upsert(category.toJson());
+    for (final tier in category.tiers) {
+      await _client.from('ticket_tiers').upsert(tier.toJson());
+    }
   }
-  
-  // 3. Upload imagen (TODO: Supabase Storage)
-  // Actualmente solo guarda bytes en memoria
 }
 ```
+
+### Sistema de Imágenes
+
+Al subir imagen, `StorageService` genera automáticamente:
+- `thumbnail_url` - 300x300 (listas, cards pequeñas)
+- `image_url` - 600x600 (cards, previews)
+- `full_image_url` - Original optimizado (hero sections)
 
 ### Campos en DB
 
@@ -342,12 +357,17 @@ INSERT INTO events (
   id, producer_id, title, slug, main_artist, lineup,
   start_datetime, end_datetime, venue_name, address, city,
   lat, lng, genre, description, organizer_name, features,
-  image_url, status, is_published, total_capacity
+  image_url, thumbnail_url, full_image_url,
+  status, is_published, total_capacity, show_all_ticket_types
 ) VALUES (...);
 
-INSERT INTO ticket_types (
-  id, event_id, name, price, total_quantity,
-  sold_quantity, max_per_purchase, is_active
+INSERT INTO ticket_categories (
+  id, event_id, name, description, max_per_purchase, order_index
+) VALUES (...);
+
+INSERT INTO ticket_tiers (
+  id, category_id, name, price, quantity, sold_count,
+  is_active, sale_starts_at, sale_ends_at, order_index
 ) VALUES (...);
 ```
 
@@ -356,16 +376,13 @@ INSERT INTO ticket_types (
 ## 🐛 ISSUES CONOCIDOS
 
 1. **MapPickerDialog es mock** - 3 ubicaciones hardcodeadas
-2. **Image upload temporal** - Solo guarda `imageBytes` en memoria
-3. **Slug generation** - Actualmente manual, debería ser auto-generado
+2. **Slug generation** - Actualmente manual, debería ser auto-generado
 
 ---
 
 ## 🚀 MEJORAS PENDIENTES
 
 - [ ] Google Maps integration real
-- [ ] Upload de imágenes a Supabase Storage
 - [ ] Auto-generar slug desde título
 - [ ] Drag & drop para reordenar lineup
 - [ ] Validación de fechas solapadas (mismo venue)
-- [ ] Previsualización de cómo se verá en evio_fan

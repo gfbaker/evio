@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/models/event.dart';
@@ -5,6 +6,57 @@ import 'package:evio_core/repositories/event_repository.dart';
 import 'package:evio_core/repositories/producer_repository.dart';
 
 part 'event_provider.g.dart';
+
+// ============================================
+// CACHE MANAGEMENT
+// ============================================
+
+/// Timestamp del último fetch de eventos (para TTL)
+final lastEventsFetchProvider = StateProvider<DateTime?>((ref) => null);
+
+/// Duración del cache (5 minutos)
+const eventsCacheDuration = Duration(minutes: 5);
+
+/// Helper: Verificar si el cache expiró
+bool isCacheExpired(DateTime? lastFetch) {
+  if (lastFetch == null) return true;
+  final elapsed = DateTime.now().difference(lastFetch);
+  return elapsed > eventsCacheDuration;
+}
+
+/// Helper: Refrescar eventos SOLO si es necesario
+Future<void> smartRefreshEvents(WidgetRef ref, {bool force = false}) async {
+  try {
+    final lastFetch = ref.read(lastEventsFetchProvider);
+    
+    if (force || isCacheExpired(lastFetch)) {
+      final remainingTime = lastFetch != null 
+        ? eventsCacheDuration.inMinutes - DateTime.now().difference(lastFetch).inMinutes
+        : 0;
+      
+      debugPrint('🔄 [SmartRefresh] Cache ${force ? "forzado" : "expirado"} (${remainingTime}min restantes), refrescando...');
+      
+      // ✅ Refresh con timeout de 10s
+      await ref.refresh(eventsProvider.future).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ [SmartRefresh] Timeout, usando cache viejo');
+          return ref.read(eventsProvider).value ?? [];
+        },
+      );
+      
+      // ✅ Actualizar timestamp SOLO si el refresh fue exitoso
+      ref.read(lastEventsFetchProvider.notifier).state = DateTime.now();
+      debugPrint('✅ [SmartRefresh] Eventos actualizados');
+    } else {
+      final remainingTime = eventsCacheDuration.inMinutes - DateTime.now().difference(lastFetch!).inMinutes;
+      debugPrint('✅ [SmartRefresh] Cache válido (${remainingTime}min restantes), skip refresh');
+    }
+  } catch (e) {
+    debugPrint('❌ [SmartRefresh] Error: $e');
+    // No throw - fallar gracefully
+  }
+}
 
 // ============================================
 // REPOSITORY PROVIDER
@@ -76,17 +128,22 @@ final eventFiltersProvider =
       EventFiltersNotifier.new,
     );
 
-/// Provider de eventos con filtros
-final eventsProvider = FutureProvider.autoDispose<List<Event>>((ref) async {
+/// Provider de eventos con filtros (CACHED - keepAlive)
+final eventsProvider = FutureProvider<List<Event>>((ref) async {
   final repository = ref.watch(eventRepositoryProvider);
   final filters = ref.watch(eventFiltersProvider);
 
-  return repository.getPublishedEvents(
+  debugPrint('🔄 [eventsProvider] Fetching eventos...');
+
+  final events = await repository.getPublishedEvents(
     city: filters.city,
     genre: filters.genre,
     fromDate: filters.fromDate,
     toDate: filters.toDate,
   );
+
+  debugPrint('✅ [eventsProvider] ${events.length} eventos cargados');
+  return events;
 });
 
 // ============================================

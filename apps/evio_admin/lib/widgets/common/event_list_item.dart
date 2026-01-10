@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:evio_core/evio_core.dart';
-import '../../providers/event_providers.dart';
 
 class EventListItem extends StatefulWidget {
   final Event event;

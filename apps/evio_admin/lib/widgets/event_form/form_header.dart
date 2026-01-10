@@ -83,7 +83,7 @@ class FormHeader extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(status).withOpacity(0.1),
+                        color: _getStatusColor(status).withValues(alpha: 0.1),
                         border: Border.all(
                           color: _getStatusColor(status),
                           width: 1,
@@ -123,6 +123,7 @@ class FormHeader extends StatelessWidget {
             ),
             child: Text('Cancelar'),
           ),
+          
           SizedBox(width: EvioSpacing.sm),
           FilledButton.icon(
             onPressed: isLoading ? null : onSave,

@@ -22,17 +22,25 @@ TicketTier _$TicketTierFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$TicketTier {
   String get id => throw _privateConstructorUsedError;
+  @JsonKey(name: 'category_id')
   String get ticketCategoryId => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   String? get description => throw _privateConstructorUsedError;
   int get price => throw _privateConstructorUsedError;
   int get quantity => throw _privateConstructorUsedError;
+  @JsonKey(name: 'sold_count')
   int get soldCount => throw _privateConstructorUsedError;
+  @JsonKey(name: 'order_index')
   int get orderIndex => throw _privateConstructorUsedError;
+  @JsonKey(name: 'is_active')
   bool get isActive => throw _privateConstructorUsedError;
+  @JsonKey(name: 'sale_starts_at')
   DateTime? get saleStartsAt => throw _privateConstructorUsedError;
+  @JsonKey(name: 'sale_ends_at')
   DateTime? get saleEndsAt => throw _privateConstructorUsedError;
+  @JsonKey(name: 'created_at')
   DateTime get createdAt => throw _privateConstructorUsedError;
+  @JsonKey(name: 'updated_at')
   DateTime get updatedAt => throw _privateConstructorUsedError;
 
   /// Serializes this TicketTier to a JSON map.
@@ -54,18 +62,18 @@ abstract class $TicketTierCopyWith<$Res> {
   @useResult
   $Res call({
     String id,
-    String ticketCategoryId,
+    @JsonKey(name: 'category_id') String ticketCategoryId,
     String name,
     String? description,
     int price,
     int quantity,
-    int soldCount,
-    int orderIndex,
-    bool isActive,
-    DateTime? saleStartsAt,
-    DateTime? saleEndsAt,
-    DateTime createdAt,
-    DateTime updatedAt,
+    @JsonKey(name: 'sold_count') int soldCount,
+    @JsonKey(name: 'order_index') int orderIndex,
+    @JsonKey(name: 'is_active') bool isActive,
+    @JsonKey(name: 'sale_starts_at') DateTime? saleStartsAt,
+    @JsonKey(name: 'sale_ends_at') DateTime? saleEndsAt,
+    @JsonKey(name: 'created_at') DateTime createdAt,
+    @JsonKey(name: 'updated_at') DateTime updatedAt,
   });
 }
 
@@ -169,18 +177,18 @@ abstract class _$$TicketTierImplCopyWith<$Res>
   @useResult
   $Res call({
     String id,
-    String ticketCategoryId,
+    @JsonKey(name: 'category_id') String ticketCategoryId,
     String name,
     String? description,
     int price,
     int quantity,
-    int soldCount,
-    int orderIndex,
-    bool isActive,
-    DateTime? saleStartsAt,
-    DateTime? saleEndsAt,
-    DateTime createdAt,
-    DateTime updatedAt,
+    @JsonKey(name: 'sold_count') int soldCount,
+    @JsonKey(name: 'order_index') int orderIndex,
+    @JsonKey(name: 'is_active') bool isActive,
+    @JsonKey(name: 'sale_starts_at') DateTime? saleStartsAt,
+    @JsonKey(name: 'sale_ends_at') DateTime? saleEndsAt,
+    @JsonKey(name: 'created_at') DateTime createdAt,
+    @JsonKey(name: 'updated_at') DateTime updatedAt,
   });
 }
 
@@ -273,22 +281,22 @@ class __$$TicketTierImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$TicketTierImpl implements _TicketTier {
+class _$TicketTierImpl extends _TicketTier {
   const _$TicketTierImpl({
     required this.id,
-    required this.ticketCategoryId,
+    @JsonKey(name: 'category_id') required this.ticketCategoryId,
     required this.name,
     this.description,
     required this.price,
     required this.quantity,
-    this.soldCount = 0,
-    required this.orderIndex,
-    this.isActive = true,
-    this.saleStartsAt,
-    this.saleEndsAt,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+    @JsonKey(name: 'sold_count') required this.soldCount,
+    @JsonKey(name: 'order_index') required this.orderIndex,
+    @JsonKey(name: 'is_active') required this.isActive,
+    @JsonKey(name: 'sale_starts_at') this.saleStartsAt,
+    @JsonKey(name: 'sale_ends_at') this.saleEndsAt,
+    @JsonKey(name: 'created_at') required this.createdAt,
+    @JsonKey(name: 'updated_at') required this.updatedAt,
+  }) : super._();
 
   factory _$TicketTierImpl.fromJson(Map<String, dynamic> json) =>
       _$$TicketTierImplFromJson(json);
@@ -296,6 +304,7 @@ class _$TicketTierImpl implements _TicketTier {
   @override
   final String id;
   @override
+  @JsonKey(name: 'category_id')
   final String ticketCategoryId;
   @override
   final String name;
@@ -306,20 +315,25 @@ class _$TicketTierImpl implements _TicketTier {
   @override
   final int quantity;
   @override
-  @JsonKey()
+  @JsonKey(name: 'sold_count')
   final int soldCount;
   @override
+  @JsonKey(name: 'order_index')
   final int orderIndex;
   @override
-  @JsonKey()
+  @JsonKey(name: 'is_active')
   final bool isActive;
   @override
+  @JsonKey(name: 'sale_starts_at')
   final DateTime? saleStartsAt;
   @override
+  @JsonKey(name: 'sale_ends_at')
   final DateTime? saleEndsAt;
   @override
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
   @override
+  @JsonKey(name: 'updated_at')
   final DateTime updatedAt;
 
   @override
@@ -390,22 +404,23 @@ class _$TicketTierImpl implements _TicketTier {
   }
 }
 
-abstract class _TicketTier implements TicketTier {
+abstract class _TicketTier extends TicketTier {
   const factory _TicketTier({
     required final String id,
-    required final String ticketCategoryId,
+    @JsonKey(name: 'category_id') required final String ticketCategoryId,
     required final String name,
     final String? description,
     required final int price,
     required final int quantity,
-    final int soldCount,
-    required final int orderIndex,
-    final bool isActive,
-    final DateTime? saleStartsAt,
-    final DateTime? saleEndsAt,
-    required final DateTime createdAt,
-    required final DateTime updatedAt,
+    @JsonKey(name: 'sold_count') required final int soldCount,
+    @JsonKey(name: 'order_index') required final int orderIndex,
+    @JsonKey(name: 'is_active') required final bool isActive,
+    @JsonKey(name: 'sale_starts_at') final DateTime? saleStartsAt,
+    @JsonKey(name: 'sale_ends_at') final DateTime? saleEndsAt,
+    @JsonKey(name: 'created_at') required final DateTime createdAt,
+    @JsonKey(name: 'updated_at') required final DateTime updatedAt,
   }) = _$TicketTierImpl;
+  const _TicketTier._() : super._();
 
   factory _TicketTier.fromJson(Map<String, dynamic> json) =
       _$TicketTierImpl.fromJson;
@@ -413,6 +428,7 @@ abstract class _TicketTier implements TicketTier {
   @override
   String get id;
   @override
+  @JsonKey(name: 'category_id')
   String get ticketCategoryId;
   @override
   String get name;
@@ -423,18 +439,25 @@ abstract class _TicketTier implements TicketTier {
   @override
   int get quantity;
   @override
+  @JsonKey(name: 'sold_count')
   int get soldCount;
   @override
+  @JsonKey(name: 'order_index')
   int get orderIndex;
   @override
+  @JsonKey(name: 'is_active')
   bool get isActive;
   @override
+  @JsonKey(name: 'sale_starts_at')
   DateTime? get saleStartsAt;
   @override
+  @JsonKey(name: 'sale_ends_at')
   DateTime? get saleEndsAt;
   @override
+  @JsonKey(name: 'created_at')
   DateTime get createdAt;
   @override
+  @JsonKey(name: 'updated_at')
   DateTime get updatedAt;
 
   /// Create a copy of TicketTier

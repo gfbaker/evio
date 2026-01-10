@@ -5,6 +5,8 @@ import 'package:evio_core/evio_core.dart';
 import '../../../providers/event_provider.dart';
 import '../../../providers/spotify_provider.dart';
 import '../../../providers/ticket_provider.dart';
+import '../../../providers/saved_event_provider.dart';
+import '../../../widgets/cached_event_image.dart';
 
 class UpcomingEventsList extends StatelessWidget {
   final List<Event> events;
@@ -57,6 +59,13 @@ class _UpcomingEventCard extends ConsumerWidget {
     // ✅ Cargar precio mínimo del evento
     final minPriceAsync = ref.watch(eventMinPriceProvider(event.id));
     
+    // ✅ Check si está guardado
+    final savedIdsAsync = ref.watch(savedEventIdsProvider);
+    final isSaved = savedIdsAsync.maybeWhen(
+      data: (ids) => ids.contains(event.id),
+      orElse: () => false,
+    );
+    
     return InkWell(
       onTap: () => context.push('/event/${event.id}'),
       
@@ -80,18 +89,16 @@ class _UpcomingEventCard extends ConsumerWidget {
           // Imagen con badge de precio
           Stack(
             children: [
-              ClipRRect(
+              CachedEventImage(
+                imageUrl: event.imageUrl,
+                thumbnailUrl: event.thumbnailUrl,
+                fullImageUrl: event.fullImageUrl, // ✅ Fallback
+                useThumbnail: true, // Usar thumbnail en lista
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
                 borderRadius: BorderRadius.circular(8),
-                child: event.imageUrl != null
-                    ? Image.network(
-                        event.imageUrl!,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) =>
-                            _buildPlaceholder(),
-                      )
-                    : _buildPlaceholder(),
+                memCacheWidth: 160, // 2x para retina
               ),
 
               // Badge de precio (solo si tiene tandas)
@@ -123,6 +130,29 @@ class _UpcomingEventCard extends ConsumerWidget {
                 },
                 loading: () => const SizedBox.shrink(),
                 error: (_, __) => const SizedBox.shrink(),
+              ),
+
+              // Botón de guardar
+              Positioned(
+                top: 4,
+                right: 4,
+                child: GestureDetector(
+                  onTap: () {
+                    ref.read(savedEventActionsProvider).toggleSaveEvent(event.id);
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isSaved ? Icons.bookmark : Icons.bookmark_border,
+                      color: isSaved ? EvioFanColors.primary : Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -166,15 +196,6 @@ class _UpcomingEventCard extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      width: 80,
-      height: 80,
-      color: Color(0xFF252525),
-      child: Icon(Icons.music_note_rounded, size: 32, color: Colors.grey[700]),
     );
   }
 

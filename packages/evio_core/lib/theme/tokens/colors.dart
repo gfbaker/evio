@@ -153,7 +153,7 @@ abstract class EvioLightColors {
 // Colores para Fan App (tema oscuro con acento amarillo dorado)
 abstract class EvioFanColors {
   // Primary - Amarillo dorado (acento principal)
-  static const Color primary = Color(0xFFFFC107);
+  static const Color primary = Color(0xFFF7CD04);
   static const Color primaryForeground = Color(0xFF000000);
 
   // Backgrounds
@@ -174,10 +174,6 @@ abstract class EvioFanColors {
   // Input
   static const Color inputBackground = Color(0xFF1E1E1E);
 
-  // Accent - Dorado para badges/highlights
-  static const Color accent = Color(0xFFFFD700);
-  static const Color accentForeground = Color(0xFF000000);
-
   // Muted
   static const Color muted = Color(0xFF2C2C2C);
 
@@ -194,7 +190,7 @@ abstract class EvioFanColors {
   static const Color cardForeground = Color(0xFFFFFFFF);
 
   // Bottom Nav (tab activo tiene fondo amarillo)
-  static const Color activeTab = Color(0xFFFFC107); // Amarillo
+  static const Color activeTab = Color(0xFFF7CD04); // Amarillo
   static const Color activeTabForeground = Color(0xFF000000); // Negro
   static const Color inactiveTab = Color(0xFF9E9E9E); // Gris
 }

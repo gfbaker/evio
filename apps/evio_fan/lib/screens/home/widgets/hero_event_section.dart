@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
+import '../../../widgets/cached_event_image.dart';
 
 class HeroEventSection extends StatefulWidget {
   final Event event;
@@ -78,14 +79,15 @@ class _HeroEventSectionState extends State<HeroEventSection> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Imagen de fondo
-          event.imageUrl != null
-              ? Image.network(
-                  event.imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stack) => _buildPlaceholder(),
-                )
-              : _buildPlaceholder(),
+          // Imagen de fondo con caché
+          CachedEventImage(
+            imageUrl: event.imageUrl,
+            fullImageUrl: event.fullImageUrl, // ✅ Fallback
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: 400,
+            memCacheHeight: 800, // Optimización de memoria
+          ),
 
           // Gradiente oscuro abajo
           Container(
@@ -213,19 +215,6 @@ class _HeroEventSectionState extends State<HeroEventSection> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      color: Color(0xFF252525),
-      child: Center(
-        child: Icon(
-          Icons.music_note_rounded,
-          size: 80,
-          color: Colors.grey[700],
-        ),
       ),
     );
   }

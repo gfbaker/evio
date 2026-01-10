@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  file_selector_windows
   geolocator_windows
   screen_brightness_windows
   url_launcher_windows

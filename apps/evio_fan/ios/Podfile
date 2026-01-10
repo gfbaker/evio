@@ -39,5 +39,15 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    # ✅ Forzar deployment target mínimo de 14.0 para todos los pods
+    target.build_configurations.each do |config|
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 14.0
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      end
+      
+      # ✅ Suprimir warnings de deprecación (opcional)
+      config.build_settings['GCC_WARN_DEPRECATED_FUNCTIONS'] = 'NO'
+    end
   end
 end

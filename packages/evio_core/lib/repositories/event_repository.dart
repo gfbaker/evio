@@ -1,11 +1,9 @@
 import 'package:evio_core/models/event_stats.dart';
-import 'package:evio_core/models/ticket_type.dart';
 import 'package:evio_core/models/ticket_category.dart';
 import 'package:evio_core/models/ticket_tier.dart';
 import 'package:evio_core/services/supabase_service.dart';
 import 'package:evio_core/models/event.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 class EventRepository {
   final _client = SupabaseService.client;
@@ -167,7 +165,62 @@ class EventRepository {
 
   // Eliminar evento
   Future<void> deleteEvent(String id) async {
-    await _client.from('events').delete().eq('id', id);
+    debugPrint('\n🗑️ [EventRepository] ========== INICIO DELETE ==========');
+    debugPrint('🗑️ [EventRepository] Event ID: $id');
+    
+    try {
+      // 1. Obtener el evento para acceder a las imágenes
+      debugPrint('🗑️ [EventRepository] Paso 1: Obteniendo evento...');
+      final event = await getEventById(id);
+      debugPrint('🗑️ [EventRepository] Evento obtenido: ${event?.title ?? "null"}');
+      
+      // 2. Eliminar imágenes de Storage (si existen)
+      if (event != null) {
+        debugPrint('🗑️ [EventRepository] Paso 2: Eliminando imágenes...');
+        
+        if (event.imageUrl != null && event.imageUrl!.isNotEmpty) {
+          try {
+            debugPrint('🗑️ [EventRepository] Eliminando imagen cropeada: ${event.imageUrl}');
+            final uri = Uri.parse(event.imageUrl!);
+            final pathAfterBucket = uri.path.split('/public/events/').last;
+            await _client.storage.from('events').remove([pathAfterBucket]);
+            debugPrint('✅ [EventRepository] Imagen cropeada eliminada');
+          } catch (e) {
+            debugPrint('⚠️ [EventRepository] Error eliminando imagen cropeada: $e');
+          }
+        } else {
+          debugPrint('🗑️ [EventRepository] Sin imagen cropeada para eliminar');
+        }
+        
+        if (event.fullImageUrl != null && event.fullImageUrl!.isNotEmpty) {
+          try {
+            debugPrint('🗑️ [EventRepository] Eliminando imagen completa: ${event.fullImageUrl}');
+            final uri = Uri.parse(event.fullImageUrl!);
+            final pathAfterBucket = uri.path.split('/public/events/').last;
+            await _client.storage.from('events').remove([pathAfterBucket]);
+            debugPrint('✅ [EventRepository] Imagen completa eliminada');
+          } catch (e) {
+            debugPrint('⚠️ [EventRepository] Error eliminando imagen completa: $e');
+          }
+        } else {
+          debugPrint('🗑️ [EventRepository] Sin imagen completa para eliminar');
+        }
+      } else {
+        debugPrint('⚠️ [EventRepository] Evento no encontrado, continuando con delete...');
+      }
+      
+      // 3. Eliminar evento (las categorías/tiers se eliminan por CASCADE en BD)
+      debugPrint('🗑️ [EventRepository] Paso 3: Eliminando registro de BD...');
+      final response = await _client.from('events').delete().eq('id', id);
+      debugPrint('🗑️ [EventRepository] Response de delete: $response');
+      debugPrint('✅ [EventRepository] ========== DELETE EXITOSO ==========\n');
+    } catch (e, st) {
+      debugPrint('❌ [EventRepository] ========== ERROR EN DELETE ==========');
+      debugPrint('❌ [EventRepository] Error: $e');
+      debugPrint('❌ [EventRepository] Stack: $st');
+      debugPrint('❌ [EventRepository] ==========================================\n');
+      rethrow;
+    }
   }
 
   // Publicar/despublicar evento
@@ -249,52 +302,10 @@ class EventRepository {
   }
   // ============ TICKET TYPES ============
 
-  // Obtener tandas de un evento
-  // ⚠️ TEMPORALMENTE DESHABILITADO - Usar nuevo sistema de ticket_categories + ticket_tiers
-  Future<List<TicketType>> getEventTicketTypes(String eventId) async {
-    // TODO: Migrar a nuevo sistema
-    return [];
-    
-    /*
-    final response = await _client
-        .from('ticket_types')
-        .select()
-        .eq('event_id', eventId)
-        .order('display_order', ascending: true) // ✅ Ordenar por display_order
-        .order('price', ascending: true); // Fallback si display_order es null
-
-    return (response as List).map((e) => TicketType.fromJson(e)).toList();
-    */
-  }
-
-  // Crear tanda
-  // ⚠️ TEMPORALMENTE DESHABILITADO
-  Future<TicketType> createTicketType(TicketType ticketType) async {
-    throw UnimplementedError('Usar nuevo sistema de ticket_categories + ticket_tiers');
-  }
-
-  // Actualizar tanda
-  // ⚠️ TEMPORALMENTE DESHABILITADO
-  Future<TicketType> updateTicketType(TicketType ticketType) async {
-    throw UnimplementedError('Usar nuevo sistema de ticket_categories + ticket_tiers');
-  }
-
-  // Eliminar tanda
-  // ⚠️ TEMPORALMENTE DESHABILITADO
-  Future<void> deleteTicketType(String id) async {
-    throw UnimplementedError('Usar nuevo sistema de ticket_categories + ticket_tiers');
-  }
-
-  // Guardar todas las tandas de un evento (transacción simulada)
-  // ⚠️ TEMPORALMENTE DESHABILITADO
-  Future<void> saveEventTicketTypes(
-    String eventId,
-    List<TicketType> ticketTypes,
-  ) async {
-    // TODO: Migrar a nuevo sistema
-    debugPrint('⚠️ saveEventTicketTypes llamado pero deshabilitado');
-    return;
-  }
+  // ============ MÉTODOS LEGACY ELIMINADOS ============
+  // Los métodos de TicketType fueron reemplazados por:
+  // - saveTicketCategories()
+  // - getEventTicketCategories()
   // ============ STATS Y MÉTRICAS ============
 
   /// Obtener estadísticas de un evento
