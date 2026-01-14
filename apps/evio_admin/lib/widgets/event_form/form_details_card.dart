@@ -77,11 +77,19 @@ class FormDetailsCard extends ConsumerWidget {
           ),
           SizedBox(height: EvioSpacing.lg),
           LabelInput(
-            label: 'Descripción del evento',
+            label: 'Descripción del Evento',
             controller: descriptionCtrl,
             maxLines: 4,
             hint:
                 'Describe tu evento... Ej: Una noche épica de techno con los mejores DJs de la escena underground.',
+          ),
+          SizedBox(height: EvioSpacing.xs),
+          Text(
+            'Esta descripción aparecerá en el preview de la app móvil',
+            style: TextStyle(
+              fontSize: 12,
+              color: EvioLightColors.mutedForeground,
+            ),
           ),
         ],
       ),

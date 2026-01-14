@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:evio_core/evio_core.dart';
+
 import '../../providers/event_providers.dart';
 
 class EventCard extends ConsumerStatefulWidget {
@@ -19,30 +20,37 @@ class _EventCardState extends ConsumerState<EventCard> {
 
   @override
   Widget build(BuildContext context) {
-    final statusColors = _getStatusColors(widget.event);
+    final event = widget.event;
     
-    // ✅ Cargar categorías para obtener tier activo
-    final categoriesAsync = ref.watch(
-      eventTicketCategoriesProvider(widget.event.id),
+    // ✅ Obtener stats reales del provider
+    final statsAsync = ref.watch(eventStatsProvider(event.id));
+    
+    final totalCapacity = event.totalCapacity ?? 0;
+    final soldCount = statsAsync.maybeWhen(
+      data: (stats) => stats.soldCount,
+      orElse: () => 0,
     );
+    final occupancy = totalCapacity > 0
+        ? (soldCount / totalCapacity)
+        : 0.0;
+    final occupancyPercent = (occupancy * 100).round();
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTap: () => context.push('/admin/events/${widget.event.id}'),
+        onTap: () => context.push('/admin/events/${event.id}'),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: EvioLightColors.card,
-            borderRadius: BorderRadius.circular(EvioRadius.xl),
-            border: Border.all(color: EvioLightColors.border),
+            borderRadius: BorderRadius.circular(EvioRadius.card),
             boxShadow: _isHovered
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
                     ),
                   ]
                 : [],
@@ -50,273 +58,165 @@ class _EventCardState extends ConsumerState<EventCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Imagen + Badges
-              SizedBox(
-                height: 192,
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(EvioRadius.xl),
-                        topRight: Radius.circular(EvioRadius.xl),
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: double.infinity,
-                        child: widget.event.imageUrl != null
-                            ? Image.network(
-                                widget.event.imageUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    _buildPlaceholder(),
-                              )
-                            : _buildPlaceholder(),
-                      ),
+              // Imagen con menú
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(EvioRadius.card),
                     ),
-                    Positioned(
-                      top: EvioSpacing.sm,
-                      left: EvioSpacing.sm,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: EvioSpacing.xs,
-                          vertical: EvioSpacing.xxs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColors['bg'],
-                          borderRadius: BorderRadius.circular(
-                            EvioRadius.button,
-                          ),
-                        ),
-                        child: Text(
-                          _getStatusLabel(widget.event),
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500,
-                            color: statusColors['text'],
-                          ),
-                        ),
-                      ),
+                    child: SizedBox(
+                      height: 160,
+                      width: double.infinity,
+                      child: event.imageUrl != null
+                          ? Image.network(
+                              event.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                            )
+                          : _buildPlaceholder(),
                     ),
-                    Positioned(
-                      top: EvioSpacing.sm,
-                      right: EvioSpacing.sm,
-                      child: _EventCardMenu(eventId: widget.event.id),
-                    ),
-                  ],
-                ),
+                  ),
+                  Positioned(
+                    top: EvioSpacing.sm,
+                    right: EvioSpacing.sm,
+                    child: _EventCardMenu(eventId: event.id),
+                  ),
+                ],
               ),
 
               // Contenido
               Padding(
-                padding: EdgeInsets.only(
-                  left: EvioSpacing.md,
-                  right: EvioSpacing.md,
-                  top: EvioSpacing.sm,
-                  bottom: EvioSpacing.xxs, // ✅ Reducido 1px más (xs → xxs)
-                ),
+                padding: EdgeInsets.all(EvioSpacing.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Título - Estilo Grid
-                    Text(
-                      widget.event.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: EvioLightColors.foreground,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: EvioSpacing.xxs),
-
-                    // Género - Estilo Grid
-                    Text(
-                      widget.event.genre ?? 'Música Electrónica',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: EvioLightColors.mutedForeground,
-                      ),
-                    ),
-                    SizedBox(height: EvioSpacing.xs),  // ✅ Reducido de sm a xs
-
-                    // Fecha y Hora
-                    _InfoRow(
-                      icon: Icons.calendar_today,
-                      text: DateFormat(
-                        'd MMM yyyy • HH:mm',
-                        'es',
-                      ).format(widget.event.startDatetime),
-                    ),
-                    SizedBox(height: EvioSpacing.xs),
-
-                    // Ubicación
-                    _InfoRow(
-                      icon: Icons.location_on_outlined,
-                      text: '${widget.event.venueName}, ${widget.event.city}',
-                    ),
-
-                    // Divisor
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: EvioSpacing.xs),  // ✅ Reducido de sm a xs
-                      child: Divider(height: 1, color: EvioLightColors.border),
-                    ),
-
-                    // Stats Footer
-                    categoriesAsync.when(
-                      data: (categories) {
-                        final activeTier = _getActiveTier(categories);
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.confirmation_number_outlined,
-                                  size: EvioSpacing.iconS,
-                                  color: EvioLightColors.mutedForeground,
+                    // Date badge + Title + Venue
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _DateBadge(date: event.startDatetime),
+                        SizedBox(width: EvioSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                event.title,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: EvioLightColors.textPrimary,
                                 ),
-                                SizedBox(width: EvioSpacing.xxs),
-                                const Text(
-                                  'Etapa de Venta',
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on_outlined,
+                                    size: 14,
                                     color: EvioLightColors.mutedForeground,
                                   ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: EvioSpacing.xs,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: EvioLightColors.muted,
-                                borderRadius: BorderRadius.circular(
-                                  EvioRadius.button,
-                                ),
-                                border: Border.all(color: EvioLightColors.border),
-                              ),
-                              child: Text(
-                                activeTier ?? 'Sin venta',
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                      loading: () => Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.confirmation_number_outlined,
-                                size: EvioSpacing.iconS,
-                                color: EvioLightColors.mutedForeground,
-                              ),
-                              SizedBox(width: EvioSpacing.xxs),
-                              const Text(
-                                'Etapa de Venta',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: EvioLightColors.mutedForeground,
-                                ),
+                                  SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      event.venueName,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: EvioLightColors.mutedForeground,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                          SizedBox(
-                            width: 60,
-                            height: 20,
-                            child: Center(
-                              child: SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      error: (_, __) => Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.confirmation_number_outlined,
-                                size: EvioSpacing.iconS,
-                                color: EvioLightColors.mutedForeground,
-                              ),
-                              SizedBox(width: EvioSpacing.xxs),
-                              const Text(
-                                'Etapa de Venta',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: EvioLightColors.mutedForeground,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: EvioSpacing.xs,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: EvioLightColors.muted,
-                              borderRadius: BorderRadius.circular(
-                                EvioRadius.button,
-                              ),
-                              border: Border.all(color: EvioLightColors.border),
-                            ),
-                            child: const Text(
-                              'Sin venta',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: EvioSpacing.xxs), // ✅ Reducido de xs a xxs
-
-                    // Asistencia
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: EvioSpacing.iconS,
-                              color: EvioLightColors.mutedForeground,
-                            ),
-                            SizedBox(width: EvioSpacing.xxs),
-                            const Text(
-                              'Asistencia',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: EvioLightColors.mutedForeground,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '${widget.event.soldCount}/${widget.event.totalCapacity}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: EvioLightColors.foreground,
                           ),
                         ),
                       ],
+                    ),
+
+                    SizedBox(height: EvioSpacing.sm),
+
+                    // Genre badge
+                    if (event.genre != null)
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: EvioSpacing.sm,
+                          vertical: EvioSpacing.xxs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: EvioLightColors.muted,
+                          borderRadius: BorderRadius.circular(EvioRadius.button),
+                        ),
+                        child: Text(
+                          event.genre!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: EvioLightColors.textPrimary,
+                          ),
+                        ),
+                      ),
+
+                    SizedBox(height: EvioSpacing.md),
+
+                    // Vendidos row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Vendidos',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: EvioLightColors.mutedForeground,
+                          ),
+                        ),
+                        Text(
+                          '${soldCount}/${totalCapacity}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: EvioLightColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: EvioSpacing.xs),
+
+                    // Progress bar
+                    Container(
+                      height: 8,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: EvioLightColors.muted,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: occupancy.clamp(0.0, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: EvioLightColors.accent,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: EvioSpacing.xs),
+
+                    // Ocupación
+                    Text(
+                      'Ocupación: $occupancyPercent%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: EvioLightColors.mutedForeground,
+                      ),
                     ),
                   ],
                 ),
@@ -340,88 +240,57 @@ class _EventCardState extends ConsumerState<EventCard> {
       ),
     );
   }
-
-  Map<String, Color> _getStatusColors(Event event) {
-    if (event.isPast) {
-      return {'bg': const Color(0xFFF3F4F6), 'text': const Color(0xFF1F2937)};
-    }
-    if (event.isOngoing) {
-      return {'bg': const Color(0xFFD1FAE5), 'text': const Color(0xFF065F46)};
-    }
-    return {'bg': const Color(0xFFDBEAFE), 'text': const Color(0xFF1E40AF)};
-  }
-
-  String _getStatusLabel(Event event) {
-    if (event.isPast) return 'Finalizado';
-    if (event.isOngoing) return 'En curso';
-    return 'Próximo';
-  }
-
-  // ✅ Determinar tier activo
-  String? _getActiveTier(List<TicketCategory> categories) {
-    if (categories.isEmpty) return null;
-    
-    final now = DateTime.now();
-    
-    // Buscar en todas las categorías
-    for (final category in categories) {
-      for (final tier in category.tiers) {
-        // Verificar si el tier está activo y en rango de fechas
-        if (!tier.isActive) continue;
-        
-        // Si tiene fechas de venta, verificar rango
-        if (tier.saleStartsAt != null || tier.saleEndsAt != null) {
-          final startsAt = tier.saleStartsAt;
-          final endsAt = tier.saleEndsAt;
-          
-          final isInRange = (startsAt == null || now.isAfter(startsAt)) &&
-                           (endsAt == null || now.isBefore(endsAt));
-          
-          if (isInRange) {
-            return tier.name;
-          }
-        } else {
-          // Sin fechas = siempre activo si isActive = true
-          return tier.name;
-        }
-      }
-    }
-    
-    return null;
-  }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
+// -----------------------------------------------------------------------------
+// DATE BADGE
+// -----------------------------------------------------------------------------
 
-  const _InfoRow({required this.icon, required this.text});
+class _DateBadge extends StatelessWidget {
+  final DateTime date;
+
+  const _DateBadge({required this.date});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: EvioSpacing.iconS,
-          color: EvioLightColors.mutedForeground,
-        ),
-        SizedBox(width: EvioSpacing.xs),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
+    final day = date.day.toString();
+    final month = DateFormat('MMM', 'es').format(date).toUpperCase();
+
+    return Container(
+      width: 48,
+      padding: EdgeInsets.symmetric(vertical: EvioSpacing.xs),
+      decoration: BoxDecoration(
+        color: EvioLightColors.muted,
+        borderRadius: BorderRadius.circular(EvioRadius.button),
+      ),
+      child: Column(
+        children: [
+          Text(
+            day,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: EvioLightColors.textPrimary,
+              height: 1,
+            ),
+          ),
+          Text(
+            month,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
               color: EvioLightColors.mutedForeground,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
+
+// -----------------------------------------------------------------------------
+// MENU
+// -----------------------------------------------------------------------------
 
 class _EventCardMenu extends StatelessWidget {
   final String eventId;
@@ -442,8 +311,8 @@ class _EventCardMenu extends StatelessWidget {
           ),
           child: Icon(
             Icons.more_vert,
-            size: EvioSpacing.iconS,
-            color: EvioLightColors.foreground,
+            size: 18,
+            color: EvioLightColors.textPrimary,
           ),
         ),
       ),
@@ -463,11 +332,10 @@ class _EventCardMenu extends StatelessWidget {
         Navigator.of(navContext).overlay!.context.findRenderObject()
             as RenderBox;
 
-    // 🔥 FIX: Posicionar el menú relativo al botón, no a coordenadas globales
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromLTWH(
         offset.dx,
-        offset.dy + size.height, // Justo debajo del botón
+        offset.dy + size.height,
         size.width,
         0,
       ),
@@ -478,9 +346,9 @@ class _EventCardMenu extends StatelessWidget {
       context: navContext,
       position: position,
       elevation: 4,
-      shadowColor: Colors.black.withValues(alpha: 0.2),
+      shadowColor: Colors.black.withValues(alpha: 0.15),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(EvioRadius.xs),
+        borderRadius: BorderRadius.circular(EvioRadius.button),
       ),
       color: Colors.white,
       items: [
@@ -494,11 +362,11 @@ class _EventCardMenu extends StatelessWidget {
             children: [
               Icon(
                 Icons.visibility_outlined,
-                size: EvioSpacing.iconS,
+                size: 18,
                 color: EvioLightColors.mutedForeground,
               ),
               SizedBox(width: EvioSpacing.xs),
-              const Text('Ver Detalles', style: TextStyle(fontSize: 14)),
+              Text('Ver Detalles', style: TextStyle(fontSize: 14)),
             ],
           ),
         ),
@@ -512,11 +380,11 @@ class _EventCardMenu extends StatelessWidget {
             children: [
               Icon(
                 Icons.edit_outlined,
-                size: EvioSpacing.iconS,
+                size: 18,
                 color: EvioLightColors.mutedForeground,
               ),
               SizedBox(width: EvioSpacing.xs),
-              const Text('Editar', style: TextStyle(fontSize: 14)),
+              Text('Editar', style: TextStyle(fontSize: 14)),
             ],
           ),
         ),

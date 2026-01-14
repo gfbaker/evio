@@ -13,6 +13,12 @@ import '../../widgets/common/event_card.dart';
 import '../../widgets/common/event_list_item.dart';
 import '../../widgets/common/producer_onboarding_dialog.dart';
 
+/// Vista activa del dashboard
+enum DashboardView { grid, list, kanban }
+
+/// Tab activo de filtro
+enum DashboardTab { todos, activos, finalizados }
+
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -24,20 +30,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isDisposed = false;
   final TextEditingController _searchCtrl = TextEditingController();
 
-  String _genreFilter = 'all';
-  String _statusFilter = 'all';
-  bool _isGridView = true;
+  DashboardView _currentView = DashboardView.grid;
+  DashboardTab _currentTab = DashboardTab.todos;
+
+  // ✅ Listener como función nombrada para poder removerlo correctamente
+  void _onSearchChanged() {
+    if (!_isDisposed && mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _searchCtrl.addListener(() {
-      if (!_isDisposed && mounted) {
-        setState(() {});
-      }
-    });
+    _searchCtrl.addListener(_onSearchChanged);
 
-    // Mostrar modal de onboarding si no tiene producer_id
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkOnboarding();
     });
@@ -61,10 +68,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
     } on TimeoutException {
-      // Silencioso - si falla el check, dejamos que el usuario siga
       debugPrint('Timeout checking onboarding status');
     } catch (e) {
-      // Silencioso - si falla el check, dejamos que el usuario siga
       debugPrint('Error checking onboarding: $e');
     }
   }
@@ -72,7 +77,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void dispose() {
     _isDisposed = true;
-    _searchCtrl.removeListener(() {});
+    _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -80,190 +85,199 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: EvioLightColors.background,
-      body: Column(
-        children: [
-          const _DashboardHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: _StatsSection(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: _buildFilters(),
-                  ),
-                  const SizedBox(height: 24),
-                  const _EventCountBanner(),
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: _buildEventsGrid(),
-                  ),
-                  const SizedBox(height: 48),
-                ],
+      backgroundColor: EvioLightColors.surface,
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(EvioSpacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Título y subtítulo
+            Text(
+              'Dashboard',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                color: EvioLightColors.textPrimary,
               ),
             ),
+            SizedBox(height: EvioSpacing.xxs),
+            Text(
+              'Gestiona tus eventos de música electrónica',
+              style: TextStyle(
+                fontSize: 14,
+                color: EvioLightColors.mutedForeground,
+              ),
+            ),
+            
+            SizedBox(height: EvioSpacing.xl),
+            
+            // Stats Section (mantener por ahora)
+            const _StatsSection(),
+            
+            SizedBox(height: EvioSpacing.xxl),
+            
+            // Sección Mis Eventos
+            _buildMisEventosHeader(),
+            
+            SizedBox(height: EvioSpacing.lg),
+            
+            // Contenido según vista
+            _buildEventsContent(),
+            
+            SizedBox(height: EvioSpacing.xxl),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMisEventosHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Título "Mis Eventos"
+        Text(
+          'Mis Eventos',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: EvioLightColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: EvioSpacing.md),
+        
+        // Row con tabs y controles
+        Row(
+          children: [
+            // Tabs: Todos | Activos | Finalizados
+            _buildTabs(),
+            
+            const Spacer(),
+            
+            // Search
+            _buildSearchField(),
+            
+            SizedBox(width: EvioSpacing.md),
+            
+            // View toggle (grid, list, kanban)
+            _buildViewToggle(),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabs() {
+    return Row(
+      children: [
+        _TabButton(
+          label: 'Todos',
+          isActive: _currentTab == DashboardTab.todos,
+          onTap: () => setState(() => _currentTab = DashboardTab.todos),
+        ),
+        SizedBox(width: EvioSpacing.md),
+        _TabButton(
+          label: 'Activos',
+          isActive: _currentTab == DashboardTab.activos,
+          onTap: () => setState(() => _currentTab = DashboardTab.activos),
+        ),
+        SizedBox(width: EvioSpacing.md),
+        _TabButton(
+          label: 'Finalizados',
+          isActive: _currentTab == DashboardTab.finalizados,
+          onTap: () => setState(() => _currentTab = DashboardTab.finalizados),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      width: 240,
+      height: 40,
+      decoration: BoxDecoration(
+        color: EvioLightColors.card,
+        borderRadius: BorderRadius.circular(EvioRadius.input),
+      ),
+      child: TextField(
+        controller: _searchCtrl,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'Buscar eventos...',
+          hintStyle: TextStyle(
+            color: EvioLightColors.mutedForeground,
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            size: 20,
+            color: EvioLightColors.mutedForeground,
+          ),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: EvioSpacing.sm,
+            vertical: 10,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewToggle() {
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: EvioLightColors.card,
+        borderRadius: BorderRadius.circular(EvioRadius.input),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ViewToggleButton(
+            icon: Icons.grid_view_rounded,
+            isActive: _currentView == DashboardView.grid,
+            onTap: () => setState(() => _currentView = DashboardView.grid),
+            isFirst: true,
+          ),
+          _ViewToggleButton(
+            icon: Icons.view_list_rounded,
+            isActive: _currentView == DashboardView.list,
+            onTap: () => setState(() => _currentView = DashboardView.list),
+          ),
+          _ViewToggleButton(
+            icon: Icons.view_column_rounded,
+            isActive: _currentView == DashboardView.kanban,
+            onTap: () => setState(() => _currentView = DashboardView.kanban),
+            isLast: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilters() {
-    return Flex(
-      direction: Axis.horizontal,
-      children: [
-        Expanded(
-          child: Container(
-            height: 44,
-            decoration: BoxDecoration(
-              color: EvioLightColors.inputBackground,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: TextField(
-              controller: _searchCtrl,
-              style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: 'Buscar eventos, venues...',
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: EvioLightColors.mutedForeground,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 11,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        _CustomDropdown(
-          value: _genreFilter,
-          items: const [
-            DropdownMenuItem(value: 'all', child: Text('Todos los géneros')),
-            DropdownMenuItem(value: 'techno', child: Text('Techno')),
-            DropdownMenuItem(value: 'house', child: Text('House')),
-          ],
-          onChanged: (v) => setState(() => _genreFilter = v!),
-        ),
-        const SizedBox(width: 16),
-        _CustomDropdown(
-          value: _statusFilter,
-          items: const [
-            DropdownMenuItem(value: 'all', child: Text('Todos los estados')),
-            DropdownMenuItem(value: 'upcoming', child: Text('Próximos')),
-            DropdownMenuItem(value: 'completed', child: Text('Finalizados')),
-          ],
-          onChanged: (v) => setState(() => _statusFilter = v!),
-        ),
-        const SizedBox(width: 16),
-        Container(
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: EvioLightColors.border),
-          ),
-          child: Row(
-            children: [
-              _ViewToggleButton(
-                icon: Icons.grid_view,
-                isActive: _isGridView,
-                onTap: () => setState(() => _isGridView = true),
-              ),
-              Container(width: 1, height: 24, color: EvioLightColors.border),
-              _ViewToggleButton(
-                icon: Icons.view_list,
-                isActive: !_isGridView,
-                onTap: () => setState(() => _isGridView = false),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventsGrid() {
+  Widget _buildEventsContent() {
     return Consumer(
       builder: (context, ref, _) {
         final eventsAsync = ref.watch(currentUserEventsNotifierProvider);
 
         return eventsAsync.when(
           data: (events) {
-            // ✅ APLICAR FILTROS
-            var filtered = events.where((e) {
-              // Search
-              if (_searchCtrl.text.isNotEmpty) {
-                final q = _searchCtrl.text.toLowerCase();
-                final matchTitle = e.title.toLowerCase().contains(q);
-                final matchVenue = e.venueName.toLowerCase().contains(q);
-                final matchArtist = e.mainArtist.toLowerCase().contains(q);
-                final matchCity = e.city.toLowerCase().contains(q);
-                if (!matchTitle && !matchVenue && !matchArtist && !matchCity) {
-                  return false;
-                }
-              }
-
-              // Genre
-              if (_genreFilter != 'all') {
-                if (e.genre == null || e.genre!.toLowerCase() != _genreFilter) {
-                  return false;
-                }
-              }
-
-              // Status
-              if (_statusFilter == 'upcoming') {
-                if (!e.startDatetime.isAfter(DateTime.now())) return false;
-              } else if (_statusFilter == 'completed') {
-                if (e.startDatetime.isAfter(DateTime.now())) return false;
-              }
-
-              return true;
-            }).toList();
+            // Aplicar filtros
+            var filtered = _filterEvents(events);
 
             // Empty states
             if (events.isEmpty) return const _EmptyStateFirstTime();
             if (filtered.isEmpty) return const _EmptyStateNoResults();
 
-            if (!_isGridView) {
-              return ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (_, i) => EventListItem(event: filtered[i]),
-              );
+            // Renderizar según vista
+            switch (_currentView) {
+              case DashboardView.grid:
+                return _buildGridView(filtered);
+              case DashboardView.list:
+                return _buildListView(filtered);
+              case DashboardView.kanban:
+                return _buildKanbanView(events); // Kanban usa todos, no filtered
             }
-
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                int cols = 1;
-                if (constraints.maxWidth > 768) cols = 2;
-                if (constraints.maxWidth > 1024) cols = 3;
-                if (constraints.maxWidth > 1400) cols = 4;
-
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: cols,
-                    mainAxisSpacing: 24,
-                    crossAxisSpacing: 24,
-                    mainAxisExtent: 385, // ✅ Reducido para eliminar espacio
-                  ),
-                  itemCount: filtered.length,
-                  itemBuilder: (_, i) => EventCard(event: filtered[i]),
-                );
-              },
-            );
           },
           loading: () => const Center(
             child: Padding(
@@ -276,69 +290,548 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       },
     );
   }
+
+  List<Event> _filterEvents(List<Event> events) {
+    return events.where((e) {
+      // Search filter
+      if (_searchCtrl.text.isNotEmpty) {
+        final q = _searchCtrl.text.toLowerCase();
+        final matchTitle = e.title.toLowerCase().contains(q);
+        final matchVenue = e.venueName.toLowerCase().contains(q);
+        final matchArtist = e.mainArtist.toLowerCase().contains(q);
+        final matchCity = e.city.toLowerCase().contains(q);
+        if (!matchTitle && !matchVenue && !matchArtist && !matchCity) {
+          return false;
+        }
+      }
+
+      // Tab filter
+      switch (_currentTab) {
+        case DashboardTab.todos:
+          return true;
+        case DashboardTab.activos:
+          return e.startDatetime.isAfter(DateTime.now()) && e.isPublished;
+        case DashboardTab.finalizados:
+          return e.startDatetime.isBefore(DateTime.now());
+      }
+    }).toList();
+  }
+
+  Widget _buildGridView(List<Event> events) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int cols = 1;
+        if (constraints.maxWidth > 600) cols = 2;
+        if (constraints.maxWidth > 900) cols = 3;
+        if (constraints.maxWidth > 1200) cols = 4;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            mainAxisSpacing: EvioSpacing.lg,
+            crossAxisSpacing: EvioSpacing.lg,
+            mainAxisExtent: 420,
+          ),
+          itemCount: events.length,
+          itemBuilder: (_, i) => EventCard(event: events[i]),
+        );
+      },
+    );
+  }
+
+  Widget _buildListView(List<Event> events) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: events.length,
+      separatorBuilder: (_, __) => SizedBox(height: EvioSpacing.sm),
+      itemBuilder: (_, i) => EventListItem(event: events[i]),
+    );
+  }
+
+  Widget _buildKanbanView(List<Event> events) {
+    // Separar eventos por estado
+    final borradores = events.where((e) => !e.isPublished).toList();
+    final proximos = events.where((e) => 
+      e.isPublished && e.startDatetime.isAfter(DateTime.now())
+    ).toList();
+    final finalizados = events.where((e) => 
+      e.startDatetime.isBefore(DateTime.now())
+    ).toList();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _KanbanColumn(
+            title: 'Borradores',
+            icon: Icons.edit_note_rounded,
+            events: borradores,
+            emptyMessage: '0 eventos',
+          ),
+        ),
+        SizedBox(width: EvioSpacing.lg),
+        Expanded(
+          child: _KanbanColumn(
+            title: 'Próximos',
+            icon: Icons.calendar_today_rounded,
+            events: proximos,
+            emptyMessage: '0 eventos',
+          ),
+        ),
+        SizedBox(width: EvioSpacing.lg),
+        Expanded(
+          child: _KanbanColumn(
+            title: 'Finalizados',
+            icon: Icons.check_circle_outline_rounded,
+            events: finalizados,
+            emptyMessage: '0 eventos',
+            isGrayscale: true,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // -----------------------------------------------------------------------------
-// HEADER
+// TAB BUTTON
 // -----------------------------------------------------------------------------
 
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader();
+class _TabButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _TabButton({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.only(bottom: EvioSpacing.xs),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isActive ? EvioLightColors.textPrimary : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            color: isActive 
+                ? EvioLightColors.textPrimary 
+                : EvioLightColors.mutedForeground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// VIEW TOGGLE BUTTON
+// -----------------------------------------------------------------------------
+
+class _ViewToggleButton extends StatelessWidget {
+  final IconData icon;
+  final bool isActive;
+  final VoidCallback onTap;
+  final bool isFirst;
+  final bool isLast;
+
+  const _ViewToggleButton({
+    required this.icon,
+    required this.isActive,
+    required this.onTap,
+    this.isFirst = false,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.horizontal(
+        left: isFirst ? Radius.circular(EvioRadius.input) : Radius.zero,
+        right: isLast ? Radius.circular(EvioRadius.input) : Radius.zero,
+      ),
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isActive ? EvioLightColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.horizontal(
+            left: isFirst ? Radius.circular(EvioRadius.input) : Radius.zero,
+            right: isLast ? Radius.circular(EvioRadius.input) : Radius.zero,
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: isActive
+              ? EvioLightColors.accentForeground
+              : EvioLightColors.mutedForeground,
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// KANBAN COLUMN
+// -----------------------------------------------------------------------------
+
+class _KanbanColumn extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<Event> events;
+  final String emptyMessage;
+  final bool isGrayscale;
+
+  const _KanbanColumn({
+    required this.title,
+    required this.icon,
+    required this.events,
+    required this.emptyMessage,
+    this.isGrayscale = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(EvioSpacing.md),
       decoration: BoxDecoration(
-        gradient: EvioGradients.headerGradient,
-        border: const Border(bottom: BorderSide(color: EvioLightColors.border)),
+        color: EvioLightColors.card,
+        borderRadius: BorderRadius.circular(EvioRadius.card),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: EvioLightColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.calendar_month,
-              size: 32,
-              color: EvioLightColors.primary,
-            ),
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: EvioLightColors.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(EvioRadius.button),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: EvioLightColors.textPrimary,
+                ),
+              ),
+              SizedBox(width: EvioSpacing.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: EvioLightColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    '${events.length} eventos',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: EvioLightColors.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Gestión de Eventos',
-                  style: EvioTypography.displayMedium.copyWith(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w500,
+          
+          SizedBox(height: EvioSpacing.md),
+          
+          // Events list
+          if (events.isEmpty)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.all(EvioSpacing.xl),
+                child: Text(
+                  emptyMessage,
+                  style: TextStyle(
+                    color: EvioLightColors.mutedForeground,
+                    fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Administra tus eventos de música electrónica',
-                  style: TextStyle(color: EvioLightColors.mutedForeground),
+              ),
+            )
+          else
+            ...events.map((e) => Padding(
+              padding: EdgeInsets.only(bottom: EvioSpacing.sm),
+              child: _KanbanEventCard(event: e, isGrayscale: isGrayscale),
+            )),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// KANBAN EVENT CARD
+// -----------------------------------------------------------------------------
+
+class _KanbanEventCard extends ConsumerWidget {
+  final Event event;
+  final bool isGrayscale;
+
+  const _KanbanEventCard({
+    required this.event,
+    this.isGrayscale = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ✅ Obtener stats reales del provider
+    final statsAsync = ref.watch(eventStatsProvider(event.id));
+    
+    final totalCapacity = event.totalCapacity ?? 0;
+    final soldCount = statsAsync.maybeWhen(
+      data: (stats) => stats.soldCount,
+      orElse: () => 0,
+    );
+    final occupancy = totalCapacity > 0
+        ? (soldCount / totalCapacity)
+        : 0.0;
+
+    return GestureDetector(
+      onTap: () => context.push('/admin/events/${event.id}'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: EvioLightColors.background,
+          borderRadius: BorderRadius.circular(EvioRadius.card),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Imagen
+            ClipRRect(
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(EvioRadius.card),
+              ),
+              child: ColorFiltered(
+                colorFilter: isGrayscale
+                    ? const ColorFilter.mode(Colors.grey, BlendMode.saturation)
+                    : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+                child: SizedBox(
+                  height: 120,
+                  width: double.infinity,
+                  child: event.imageUrl != null
+                      ? Image.network(event.imageUrl!, fit: BoxFit.cover)
+                      : Container(
+                          color: EvioLightColors.muted,
+                          child: Icon(Icons.image, color: EvioLightColors.mutedForeground),
+                        ),
                 ),
-              ],
+              ),
+            ),
+            
+            // Content
+            Padding(
+              padding: EdgeInsets.all(EvioSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Fecha badge + Título
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _DateBadge(date: event.startDatetime),
+                      SizedBox(width: EvioSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              event.title,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: EvioLightColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              event.venueName,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: EvioLightColors.mutedForeground,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  SizedBox(height: EvioSpacing.sm),
+                  
+                  // Badge de estado para finalizados
+                  if (isGrayscale)
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: EvioSpacing.xs,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: EvioLightColors.muted,
+                        borderRadius: BorderRadius.circular(EvioRadius.button),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check, size: 12, color: EvioLightColors.mutedForeground),
+                          SizedBox(width: 4),
+                          Text(
+                            'Finalizado',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: EvioLightColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    // Genre badge
+                    if (event.genre != null)
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: EvioSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: EvioLightColors.muted,
+                          borderRadius: BorderRadius.circular(EvioRadius.button),
+                        ),
+                        child: Text(
+                          event.genre!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: EvioLightColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                  ],
+                  
+                  SizedBox(height: EvioSpacing.sm),
+                  
+                  // Vendidos
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Vendidos',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: EvioLightColors.mutedForeground,
+                        ),
+                      ),
+                      Text(
+                        '${soldCount}/${totalCapacity}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: EvioLightColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  SizedBox(height: EvioSpacing.xxs),
+                  
+                  // Progress bar
+                  Container(
+                    height: 6,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: EvioLightColors.muted,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: occupancy.clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isGrayscale 
+                              ? EvioLightColors.mutedForeground 
+                              : EvioLightColors.accent,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// DATE BADGE
+// -----------------------------------------------------------------------------
+
+class _DateBadge extends StatelessWidget {
+  final DateTime date;
+
+  const _DateBadge({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    final day = date.day.toString();
+    final month = DateFormat('MMM', 'es').format(date).toUpperCase();
+
+    return Container(
+      width: 44,
+      padding: EdgeInsets.symmetric(vertical: EvioSpacing.xs),
+      decoration: BoxDecoration(
+        color: EvioLightColors.muted,
+        borderRadius: BorderRadius.circular(EvioRadius.button),
+      ),
+      child: Column(
+        children: [
+          Text(
+            day,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: EvioLightColors.textPrimary,
+              height: 1,
             ),
           ),
-          FilledButton.icon(
-            onPressed: () => context.push('/admin/events/new'),
-            icon: const Icon(Icons.add, size: 20),
-            label: const Text('Crear Evento'),
-            style: FilledButton.styleFrom(
-              backgroundColor: EvioLightColors.primary,
-              foregroundColor: EvioLightColors.primaryForeground,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              minimumSize: const Size(0, 40),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
+          Text(
+            month,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: EvioLightColors.mutedForeground,
             ),
           ),
         ],
@@ -348,7 +841,7 @@ class _DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// STATS SECTION CON DATOS REALES
+// STATS SECTION
 // -----------------------------------------------------------------------------
 
 class _StatsSection extends ConsumerWidget {
@@ -360,26 +853,19 @@ class _StatsSection extends ConsumerWidget {
 
     return eventsAsync.when(
       data: (events) {
-        // 1. Eventos activos (upcoming + published)
         final activeEvents = events
             .where((e) => e.status == EventStatus.upcoming && e.isPublished)
             .toList();
 
-        // 2. Próximo evento (más cercano a hoy)
-        final upcomingEvents =
-            events
-                .where((e) => e.startDatetime.isAfter(DateTime.now()))
-                .toList()
-              ..sort((a, b) => a.startDatetime.compareTo(b.startDatetime));
+        final upcomingEvents = events
+            .where((e) => e.startDatetime.isAfter(DateTime.now()))
+            .toList()
+          ..sort((a, b) => a.startDatetime.compareTo(b.startDatetime));
 
-        final nextEvent = upcomingEvents.isNotEmpty
-            ? upcomingEvents.first
-            : null;
+        final nextEvent = upcomingEvents.isNotEmpty ? upcomingEvents.first : null;
 
-        // 3. IDs de eventos activos para stats
         final eventIds = activeEvents.map((e) => e.id).toList();
 
-        // ✅ CRÍTICO: Early return si no hay eventos activos
         if (eventIds.isEmpty) {
           return _StatsGrid(
             ticketsThisWeek: 0,
@@ -389,19 +875,16 @@ class _StatsSection extends ConsumerWidget {
           );
         }
 
-        // ✅ Solo watch UNA VEZ con IDs válidos
         final eventIdsStr = eventIds.join(',');
         final statsAsync = ref.watch(multipleEventStatsProvider(eventIdsStr));
 
         return statsAsync.when(
           data: (statsMap) {
-            // Calcular tickets vendidos (total por ahora, TODO: filtrar por semana)
             int ticketsThisWeek = 0;
             for (final stats in statsMap.values) {
               ticketsThisWeek += stats.soldCount;
             }
 
-            // Calcular ocupación promedio
             final occupancies = statsMap.values
                 .where((s) => s.totalCapacity > 0)
                 .map((s) => s.occupancyPercent.toDouble())
@@ -464,7 +947,7 @@ class _StatsGrid extends StatelessWidget {
               child: _StatCard(
                 label: 'Tickets Esta Semana',
                 value: ticketsThisWeek.toString(),
-                icon: Icons.confirmation_number,
+                icon: Icons.confirmation_number_outlined,
               ),
             ),
             SizedBox(width: isDesktop ? 16 : 0, height: isDesktop ? 0 : 16),
@@ -473,7 +956,7 @@ class _StatsGrid extends StatelessWidget {
               child: _StatCard(
                 label: 'Eventos Activos',
                 value: activeEventsCount.toString(),
-                icon: Icons.event_available,
+                icon: Icons.event_available_outlined,
               ),
             ),
             SizedBox(width: isDesktop ? 16 : 0, height: isDesktop ? 0 : 16),
@@ -487,7 +970,7 @@ class _StatsGrid extends StatelessWidget {
               child: _StatCard(
                 label: 'Ocupación Promedio',
                 value: '${avgOccupancy.round()}%',
-                icon: Icons.trending_up,
+                icon: Icons.trending_up_rounded,
               ),
             ),
           ],
@@ -518,9 +1001,8 @@ class _StatsGridLoading extends StatelessWidget {
                 ),
                 height: 100,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: EvioLightColors.border),
+                  color: EvioLightColors.card,
+                  borderRadius: BorderRadius.circular(EvioRadius.card),
                 ),
                 child: const Center(
                   child: SizedBox(
@@ -552,57 +1034,50 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: EdgeInsets.all(EvioSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EvioLightColors.border),
+        color: EvioLightColors.card,
+        borderRadius: BorderRadius.circular(EvioRadius.card),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            border: Border(
-              left: BorderSide(color: EvioLightColors.border, width: 4.0),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: EvioLightColors.accent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(EvioRadius.button),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: EvioLightColors.textPrimary,
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 12.25,
-                        color: EvioLightColors.mutedForeground,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w500,
-                        color: EvioLightColors.foreground,
-                      ),
-                    ),
-                  ],
+          SizedBox(width: EvioSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                    color: EvioLightColors.textPrimary,
+                  ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: EvioLightColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: EvioLightColors.mutedForeground,
+                  ),
                 ),
-                child: Icon(icon, size: 24, color: EvioLightColors.foreground),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -618,81 +1093,61 @@ class _NextEventCard extends StatelessWidget {
     final hasEvent = event != null;
 
     return Container(
+      padding: EdgeInsets.all(EvioSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EvioLightColors.border),
+        color: EvioLightColors.card,
+        borderRadius: BorderRadius.circular(EvioRadius.card),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            border: Border(
-              left: BorderSide(color: EvioLightColors.border, width: 4.0),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: EvioLightColors.accent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(EvioRadius.button),
+            ),
+            child: Icon(
+              Icons.calendar_today_rounded,
+              size: 24,
+              color: EvioLightColors.textPrimary,
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Próximo Evento',
-                      style: TextStyle(
-                        fontSize: 12.25,
-                        color: EvioLightColors.mutedForeground,
-                      ),
+          SizedBox(width: EvioSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasEvent) ...[
+                  Text(
+                    event!.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: EvioLightColors.textPrimary,
                     ),
-                    const SizedBox(height: 4),
-                    if (hasEvent) ...[
-                      Text(
-                        event!.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: EvioLightColors.foreground,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatEventDate(event!.startDatetime),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: EvioLightColors.mutedForeground,
-                        ),
-                      ),
-                    ] else
-                      const Text(
-                        'Sin eventos',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: EvioLightColors.mutedForeground,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: EvioLightColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.calendar_today,
-                  size: 24,
-                  color: EvioLightColors.foreground,
-                ),
-              ),
-            ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    _formatEventDate(event!.startDatetime),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: EvioLightColors.mutedForeground,
+                    ),
+                  ),
+                ] else
+                  Text(
+                    'Sin eventos próximos',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: EvioLightColors.mutedForeground,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -712,251 +1167,6 @@ class _NextEventCard extends StatelessWidget {
     }
   }
 }
-
-// -----------------------------------------------------------------------------
-// BANNER CON DATOS REALES
-// -----------------------------------------------------------------------------
-
-class _EventCountBanner extends ConsumerWidget {
-  const _EventCountBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final eventsAsync = ref.watch(currentUserEventsNotifierProvider);
-
-    return eventsAsync.when(
-      data: (events) {
-        final activeEvents = events
-            .where((e) => e.status == EventStatus.upcoming && e.isPublished)
-            .toList();
-
-        final eventIds = activeEvents.map((e) => e.id).toList();
-
-        // ✅ CRÍTICO: Early return si no hay eventos activos
-        if (eventIds.isEmpty) {
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: EvioGradients.bannerGradient,
-              border: const Border.symmetric(
-                horizontal: BorderSide(color: EvioLightColors.border),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Mostrando ${events.length} eventos',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: EvioLightColors.mutedForeground,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: EvioLightColors.border),
-                    borderRadius: BorderRadius.circular(6),
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                  child: const Text(
-                    '0% ocupación general',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final eventIdsStr = eventIds.join(',');
-        final statsAsync = ref.watch(multipleEventStatsProvider(eventIdsStr));
-
-        return statsAsync.when(
-          data: (statsMap) {
-            final occupancies = statsMap.values
-                .where((s) => s.totalCapacity > 0)
-                .map((s) => s.occupancyPercent)
-                .toList();
-
-            final avgOccupancy = occupancies.isEmpty
-                ? 0
-                : (occupancies.reduce((a, b) => a + b) ~/ occupancies.length);
-
-            return Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: EvioGradients.bannerGradient,
-                border: const Border.symmetric(
-                  horizontal: BorderSide(color: EvioLightColors.border),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Mostrando ${events.length} eventos',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: EvioLightColors.mutedForeground,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: EvioLightColors.border),
-                      borderRadius: BorderRadius.circular(6),
-                      color: Colors.white.withValues(alpha: 0.5),
-                    ),
-                    child: Text(
-                      '$avgOccupancy% ocupación general',
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-          loading: () => _buildBannerSkeleton(events.length),
-          error: (_, __) => _buildBannerSkeleton(events.length),
-        );
-      },
-      loading: () => _buildBannerSkeleton(0),
-      error: (_, __) => _buildBannerSkeleton(0),
-    );
-  }
-
-  Widget _buildBannerSkeleton(int count) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: EvioGradients.bannerGradient,
-        border: const Border.symmetric(
-          horizontal: BorderSide(color: EvioLightColors.border),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Mostrando $count eventos',
-            style: const TextStyle(
-              fontSize: 14,
-              color: EvioLightColors.mutedForeground,
-            ),
-          ),
-          Container(
-            width: 120,
-            height: 20,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// OTROS WIDGETS
-// -----------------------------------------------------------------------------
-
-class _CustomDropdown extends StatelessWidget {
-  final String value;
-  final List<DropdownMenuItem<String>> items;
-  final ValueChanged<String?> onChanged;
-
-  const _CustomDropdown({
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 192,
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: EvioLightColors.border),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            color: EvioLightColors.mutedForeground,
-            size: 16,
-          ),
-          style: const TextStyle(
-            fontSize: 14,
-            color: EvioLightColors.foreground,
-          ),
-          isExpanded: true,
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-        ),
-      ),
-    );
-  }
-}
-
-class _ViewToggleButton extends StatelessWidget {
-  final IconData icon;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _ViewToggleButton({
-    required this.icon,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        alignment: Alignment.center,
-        color: isActive ? EvioLightColors.inputBackground : Colors.transparent,
-        child: Icon(
-          icon,
-          size: 20,
-          color: isActive
-              ? EvioLightColors.foreground
-              : EvioLightColors.mutedForeground,
-        ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// EMPTY STATES
-// -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
 // EMPTY STATES
@@ -996,14 +1206,14 @@ class _EmptyStateFirstTime extends StatelessWidget {
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Crear Evento'),
               style: FilledButton.styleFrom(
-                backgroundColor: EvioLightColors.primary,
-                foregroundColor: EvioLightColors.primaryForeground,
+                backgroundColor: EvioLightColors.accent,
+                foregroundColor: EvioLightColors.accentForeground,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(EvioRadius.button),
                 ),
               ),
             ),
@@ -1028,8 +1238,8 @@ class _EmptyStateNoResults extends StatelessWidget {
             Container(
               width: 96,
               height: 96,
-              decoration: const BoxDecoration(
-                color: EvioLightColors.inputBackground,
+              decoration: BoxDecoration(
+                color: EvioLightColors.muted,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -1045,7 +1255,7 @@ class _EmptyStateNoResults extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Intenta ajustar los filtros de búsqueda o limpia el campo de búsqueda',
+              'Intenta ajustar los filtros de búsqueda',
               style: TextStyle(color: EvioLightColors.mutedForeground),
               textAlign: TextAlign.center,
             ),

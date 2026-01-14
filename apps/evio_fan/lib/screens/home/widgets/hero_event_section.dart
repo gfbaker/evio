@@ -79,28 +79,35 @@ class _HeroEventSectionState extends State<HeroEventSection> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Imagen de fondo con caché
-          CachedEventImage(
-            imageUrl: event.imageUrl,
-            fullImageUrl: event.fullImageUrl, // ✅ Fallback
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: 400,
-            memCacheHeight: 800, // Optimización de memoria
+          // ✅ HERO: Imagen de fondo con caché
+          Hero(
+            tag: 'event-image-${event.id}',
+            child: CachedEventImage(
+              imageUrl: event.imageUrl,
+              thumbnailUrl: event.thumbnailUrl,
+              fullImageUrl: event.fullImageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: 400,
+              memCacheHeight: 800,
+            ),
           ),
 
-          // Gradiente oscuro abajo
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.7),
-                  Colors.black.withValues(alpha: 0.95),
-                ],
-                stops: [0.4, 0.75, 1.0],
+          // ✅ HERO: Gradiente oscuro abajo (sincronizado)
+          Hero(
+            tag: 'event-gradient-${event.id}',
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.7),
+                    Colors.black.withValues(alpha: 0.95),
+                  ],
+                  stops: [0.4, 0.75, 1.0],
+                ),
               ),
             ),
           ),

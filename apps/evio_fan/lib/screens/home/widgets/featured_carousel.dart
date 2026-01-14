@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
-import '../../../providers/saved_event_provider.dart';
 import '../../../widgets/cached_event_image.dart';
 
 class FeaturedCarousel extends StatelessWidget {
@@ -54,13 +53,6 @@ class _FeaturedCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ✅ Check si está guardado
-    final savedIdsAsync = ref.watch(savedEventIdsProvider);
-    final isSaved = savedIdsAsync.maybeWhen(
-      data: (ids) => ids.contains(event.id),
-      orElse: () => false,
-    );
-    
     return GestureDetector(
       onTap: () => context.push('/event/${event.id}'),
       child: Container(
@@ -68,31 +60,37 @@ class _FeaturedCard extends ConsumerWidget {
         margin: EdgeInsets.only(right: 12),
         child: Stack(
           children: [
-            // Imagen con bordes redondeados y caché
-            CachedEventImage(
-            imageUrl: event.imageUrl,
-            thumbnailUrl: event.thumbnailUrl,
-            fullImageUrl: event.fullImageUrl, // ✅ Fallback
-            useThumbnail: true, // Usar thumbnail en carousel
-            width: 150,
-            height: 200,
-            fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(12),
-                memCacheWidth: 300, // 2x para retina displays
+            // ✅ HERO: Imagen con tag único
+            Hero(
+              tag: 'event-image-${event.id}',
+              child: CachedEventImage(
+                imageUrl: event.imageUrl,
+                thumbnailUrl: event.thumbnailUrl,
+                fullImageUrl: event.fullImageUrl,
+                useThumbnail: true,
+                width: 150,
+                height: 200,
+                fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(12),
+                memCacheWidth: 300,
               ),
+            ),
 
             // Gradiente oscuro abajo
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.8),
-                  ],
-                  stops: [0.5, 1.0],
+            Hero(
+              tag: 'event-gradient-${event.id}',
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.8),
+                    ],
+                    stops: [0.5, 1.0],
+                  ),
                 ),
               ),
             ),
@@ -123,29 +121,6 @@ class _FeaturedCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-              ),
-            ),
-
-            // Botón de guardar
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () {
-                  ref.read(savedEventActionsProvider).toggleSaveEvent(event.id);
-                },
-                child: Container(
-                  padding: EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isSaved ? Icons.bookmark : Icons.bookmark_border,
-                    color: isSaved ? EvioFanColors.primary : Colors.white,
-                    size: 20,
-                  ),
-                ),
               ),
             ),
           ],

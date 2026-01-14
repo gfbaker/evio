@@ -29,7 +29,6 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
   late Animation<Offset> _slideAnimation;
   int _currentIndex = 0;
 
-  double? _originalBrightness;
   bool _brightnessRestored = false;
 
   @override
@@ -61,9 +60,10 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
 
   Future<void> _increaseBrightness() async {
     try {
-      _originalBrightness = await ScreenBrightness().current;
+      // ✅ Solo aumentar brillo al 100%, NO guardamos valor original
       await ScreenBrightness().setScreenBrightness(1.0);
     } catch (e) {
+      debugPrint('⚠️ Error aumentando brillo: $e');
       // Silently fail if brightness control is not available
     }
   }
@@ -72,13 +72,12 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
     if (_brightnessRestored) return;
 
     try {
-      if (_originalBrightness != null) {
-        await ScreenBrightness().setScreenBrightness(_originalBrightness!);
-      } else {
-        await ScreenBrightness().resetScreenBrightness();
-      }
+      // ✅ CRÃTICO: Restaurar usando resetScreenBrightness() que vuelve al brillo del sistema
+      // Esto permite que el usuario haya cambiado el brillo mientras navegaba
+      await ScreenBrightness().resetScreenBrightness();
       _brightnessRestored = true;
     } catch (e) {
+      debugPrint('⚠️ Error restaurando brillo: $e');
       // Silently fail if brightness control is not available
     }
   }

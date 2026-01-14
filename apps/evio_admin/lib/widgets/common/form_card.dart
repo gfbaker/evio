@@ -17,34 +17,51 @@ class FormCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: EvioLightColors.card,
         borderRadius: BorderRadius.circular(EvioRadius.card),
-        border: Border.all(color: EvioLightColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              EvioSpacing.lg,
-              EvioSpacing.md,
-              EvioSpacing.lg,
-              EvioSpacing.md,
-            ),
+            padding: EdgeInsets.all(EvioSpacing.lg),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: EvioSpacing.iconM,
-                  color: EvioLightColors.foreground,
+                // Icono con fondo amarillo
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: EvioLightColors.accent,
+                    borderRadius: BorderRadius.circular(EvioRadius.button),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: EvioLightColors.accentForeground,
+                  ),
                 ),
                 SizedBox(width: EvioSpacing.sm),
-                Text(title, style: EvioTypography.h3),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: EvioLightColors.textPrimary,
+                  ),
+                ),
               ],
             ),
           ),
-          Divider(height: 1, color: EvioLightColors.border),
-          Padding(padding: EdgeInsets.all(EvioSpacing.lg), child: child),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              EvioSpacing.lg,
+              0,
+              EvioSpacing.lg,
+              EvioSpacing.lg,
+            ),
+            child: child,
+          ),
         ],
       ),
     );

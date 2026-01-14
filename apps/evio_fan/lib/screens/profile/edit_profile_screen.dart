@@ -1,7 +1,11 @@
+import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 
@@ -133,6 +137,105 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ⚡ HEADER CON AVATAR
+              Center(
+                child: Column(
+                  children: [
+                    SizedBox(height: EvioSpacing.md),
+                    
+                    // Avatar
+                    GestureDetector(
+                      onTap: () => _showAvatarOptions(user),
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  EvioFanColors.primary.withValues(alpha: 0.3),
+                                  EvioFanColors.primary.withValues(alpha: 0.1),
+                                ],
+                              ),
+                            ),
+                            child:
+                                user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                ? ClipOval(
+                                    child: CachedNetworkImage(
+                                      imageUrl: user.avatarUrl!,
+                                      fit: BoxFit.cover,
+                                      width: 90,
+                                      height: 90,
+                                      placeholder: (context, url) => Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: EvioFanColors.primary,
+                                        ),
+                                      ),
+                                      errorWidget: (context, url, error) => Icon(
+                                        Icons.person_rounded,
+                                        size: 45,
+                                        color: EvioFanColors.mutedForeground,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.person_rounded,
+                                    size: 45,
+                                    color: EvioFanColors.primary,
+                                  ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: EvioFanColors.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: EvioFanColors.background,
+                                  width: 2.5,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.camera_alt,
+                                size: 14,
+                                color: EvioFanColors.primaryForeground,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: EvioSpacing.md),
+
+                    // Nombre
+                    Text(
+                      user.fullName,
+                      style: EvioTypography.h2.copyWith(
+                        color: EvioFanColors.foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: EvioSpacing.xxs),
+
+                    // Email
+                    Text(
+                      user.email,
+                      style: EvioTypography.bodySmall.copyWith(
+                        color: EvioFanColors.mutedForeground,
+                      ),
+                    ),
+                    
+                    SizedBox(height: EvioSpacing.xl),
+                  ],
+                ),
+              ),
+
               // Nombre
               _buildTextField(
                 controller: _firstNameController,
@@ -506,6 +609,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             : _dniController.text.trim(),
         birthDate: _selectedBirthDate,
         gender: _selectedGender,
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Timeout al guardar perfil'),
       );
 
       if (!_isDisposed && mounted) {
@@ -517,7 +623,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         );
         context.pop();
       }
+    } on TimeoutException {
+      if (!_isDisposed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tiempo de espera agotado. Intentá de nuevo.'),
+            backgroundColor: EvioFanColors.error,
+          ),
+        );
+      }
     } catch (e) {
+      debugPrint('❌ Error en _saveProfile: $e');
       if (!_isDisposed && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -529,6 +645,200 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     } finally {
       if (!_isDisposed && mounted) {
         setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  // ============================================
+  // AVATAR MANAGEMENT
+  // ============================================
+
+  void _showAvatarOptions(User user) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: EvioFanColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(EvioRadius.card),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Elegir de galería'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery, user);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tomar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera, user);
+              },
+            ),
+            if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
+              ListTile(
+                leading: Icon(Icons.delete, color: EvioFanColors.error),
+                title: Text(
+                  'Eliminar foto',
+                  style: TextStyle(color: EvioFanColors.error),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteAvatar(user);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source, User user) async {
+    try {
+      final picker = ImagePicker();
+      
+      final pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      ).timeout(
+        Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Tiempo de espera agotado al seleccionar imagen');
+        },
+      );
+
+      if (pickedFile == null || _isDisposed || !mounted) return;
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: EdgeInsets.all(EvioSpacing.xl),
+            decoration: BoxDecoration(
+              color: EvioFanColors.surface,
+              borderRadius: BorderRadius.circular(EvioRadius.card),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: EvioFanColors.primary),
+                SizedBox(height: EvioSpacing.md),
+                Text(
+                  'Subiendo imagen...',
+                  style: EvioTypography.bodyMedium.copyWith(
+                    color: EvioFanColors.foreground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final file = File(pickedFile.path);
+      final profileActions = ref.read(profileActionsProvider);
+
+      await profileActions.uploadAvatar(userId: user.id, file: file).timeout(
+        Duration(seconds: 60),
+        onTimeout: () {
+          throw TimeoutException('Tiempo de espera agotado al subir imagen');
+        },
+      );
+
+      if (!_isDisposed && mounted) {
+        Navigator.of(context).pop();
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Avatar actualizado'),
+            backgroundColor: EvioFanColors.primary,
+          ),
+        );
+      }
+    } on TimeoutException catch (e) {
+      debugPrint('❌ Timeout en _pickImage: $e');
+      if (!_isDisposed && mounted) {
+        Navigator.of(context).pop();
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tiempo de espera agotado. Intentá de nuevo.'),
+            backgroundColor: EvioFanColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error en _pickImage: $e');
+      if (!_isDisposed && mounted) {
+        Navigator.of(context).pop();
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: EvioFanColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAvatar(User user) async {
+    try {
+      final userRepo = ref.read(userRepositoryProvider);
+
+      await userRepo.updateAvatar(user.id, '').timeout(
+        Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('Tiempo de espera agotado al eliminar avatar');
+        },
+      );
+
+      if (!_isDisposed && mounted) {
+        ref.invalidate(currentUserProvider);
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Avatar eliminado'),
+            backgroundColor: EvioFanColors.primary,
+          ),
+        );
+      }
+    } on TimeoutException catch (e) {
+      debugPrint('❌ Timeout en _deleteAvatar: $e');
+      if (!_isDisposed && mounted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tiempo de espera agotado. Intentá de nuevo.'),
+            backgroundColor: EvioFanColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error en _deleteAvatar: $e');
+      if (!_isDisposed && mounted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: EvioFanColors.error,
+          ),
+        );
       }
     }
   }

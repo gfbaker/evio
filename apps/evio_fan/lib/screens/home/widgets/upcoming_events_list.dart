@@ -5,7 +5,6 @@ import 'package:evio_core/evio_core.dart';
 import '../../../providers/event_provider.dart';
 import '../../../providers/spotify_provider.dart';
 import '../../../providers/ticket_provider.dart';
-import '../../../providers/saved_event_provider.dart';
 import '../../../widgets/cached_event_image.dart';
 
 class UpcomingEventsList extends StatelessWidget {
@@ -58,38 +57,33 @@ class _UpcomingEventCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // ✅ Cargar precio mínimo del evento
     final minPriceAsync = ref.watch(eventMinPriceProvider(event.id));
-    
-    // ✅ Check si está guardado
-    final savedIdsAsync = ref.watch(savedEventIdsProvider);
-    final isSaved = savedIdsAsync.maybeWhen(
-      data: (ids) => ids.contains(event.id),
-      orElse: () => false,
-    );
-    
+
     return InkWell(
       onTap: () => context.push('/event/${event.id}'),
-      
+
       // ✅ PREFETCH: Solo info estática (cached)
       onHover: (_) {
         // Precachear info del evento
         ref.read(eventInfoProvider(event.id));
-        
+
         // Precachear imágenes de artistas
         if (event.lineup.isNotEmpty) {
           for (final artist in event.lineup.take(3)) {
             ref.read(artistImageProvider(artist.name));
           }
         }
-        
+
         // ❌ NO prefetch tickets (datos críticos, siempre fresh)
       },
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Imagen con badge de precio
+          // ✅ HERO: Imagen con badge de precio
           Stack(
             children: [
-              CachedEventImage(
+              Hero(
+                tag: 'event-image-${event.id}',
+                child: CachedEventImage(
                 imageUrl: event.imageUrl,
                 thumbnailUrl: event.thumbnailUrl,
                 fullImageUrl: event.fullImageUrl, // ✅ Fallback
@@ -99,13 +93,14 @@ class _UpcomingEventCard extends ConsumerWidget {
                 fit: BoxFit.cover,
                 borderRadius: BorderRadius.circular(8),
                 memCacheWidth: 160, // 2x para retina
+                ),
               ),
 
               // Badge de precio (solo si tiene tandas)
               minPriceAsync.when(
                 data: (minPrice) {
                   if (minPrice == null) return const SizedBox.shrink();
-                  
+
                   return Positioned(
                     left: 6,
                     bottom: 6,
@@ -130,29 +125,6 @@ class _UpcomingEventCard extends ConsumerWidget {
                 },
                 loading: () => const SizedBox.shrink(),
                 error: (_, __) => const SizedBox.shrink(),
-              ),
-
-              // Botón de guardar
-              Positioned(
-                top: 4,
-                right: 4,
-                child: GestureDetector(
-                  onTap: () {
-                    ref.read(savedEventActionsProvider).toggleSaveEvent(event.id);
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isSaved ? Icons.bookmark : Icons.bookmark_border,
-                      color: isSaved ? EvioFanColors.primary : Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
               ),
             ],
           ),

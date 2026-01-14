@@ -1,17 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../providers/ticket_provider.dart';
+import '../../widgets/common/floating_dialog.dart';
 
 /// Screen que muestra la lista de tickets de un evento
-class EventTicketsListScreen extends ConsumerWidget {
+class EventTicketsListScreen extends ConsumerStatefulWidget {
   final String eventId;
 
   const EventTicketsListScreen({super.key, required this.eventId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EventTicketsListScreen> createState() =>
+      _EventTicketsListScreenState();
+}
+
+class _EventTicketsListScreenState
+    extends ConsumerState<EventTicketsListScreen> {
+  @override
+  Widget build(BuildContext context) {
     final allTicketsAsync = ref.watch(myActiveTicketsProvider);
 
     return Scaffold(
@@ -21,7 +31,7 @@ class EventTicketsListScreen extends ConsumerWidget {
         child: allTicketsAsync.when(
           data: (allTickets) {
             final eventTickets = allTickets
-                .where((t) => t.eventId == eventId)
+                .where((t) => t.eventId == widget.eventId)
                 .toList();
 
             if (eventTickets.isEmpty) {
@@ -44,7 +54,10 @@ class EventTicketsListScreen extends ConsumerWidget {
                     ),
                   ),
                   leading: IconButton(
-                    icon: Icon(Icons.arrow_back, color: EvioFanColors.foreground),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: EvioFanColors.foreground,
+                    ),
                     onPressed: () => context.pop(),
                   ),
                 ),
@@ -130,33 +143,30 @@ class EventTicketsListScreen extends ConsumerWidget {
                 SliverPadding(
                   padding: EdgeInsets.symmetric(horizontal: EvioSpacing.lg),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final ticket = eventTickets[index];
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: EvioSpacing.md),
-                          child: _TicketItem(
-                            ticket: ticket,
-                            ticketNumber: index + 1,
-                            canShowQR: _canShowQR(ticket),
-                            onView: () {
-                              context.push('/ticket-detail/$eventId?initialIndex=$index');
-                            },
-                            onTransfer: ticket.transferAllowed && !ticket.isUsed
-                                ? () => _showTransferBottomSheet(context, ticket)
-                                : null,
-                          ),
-                        );
-                      },
-                      childCount: eventTickets.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final ticket = eventTickets[index];
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: EvioSpacing.md),
+                        child: _TicketItem(
+                          ticket: ticket,
+                          ticketNumber: index + 1,
+                          canShowQR: _canShowQR(ticket),
+                          onView: () {
+                            context.push(
+                              '/ticket-detail/${widget.eventId}?initialIndex=$index',
+                            );
+                          },
+                          onTransfer: ticket.transferAllowed && !ticket.isUsed
+                              ? () => _showTransferBottomSheet(context, ticket)
+                              : null,
+                        ),
+                      );
+                    }, childCount: eventTickets.length),
                   ),
                 ),
 
                 // Bottom spacing
-                SliverToBoxAdapter(
-                  child: SizedBox(height: EvioSpacing.xxl),
-                ),
+                SliverToBoxAdapter(child: SizedBox(height: EvioSpacing.xxl)),
               ],
             );
           },
@@ -178,17 +188,27 @@ class EventTicketsListScreen extends ConsumerWidget {
     if (ticket.event == null) return false;
     final now = DateTime.now();
     final eventStart = ticket.event!.startDatetime;
-    final eventDay = DateTime(eventStart.year, eventStart.month, eventStart.day);
+    final eventDay = DateTime(
+      eventStart.year,
+      eventStart.month,
+      eventStart.day,
+    );
     return now.isAfter(eventDay) || now.isAtSameMomentAs(eventDay);
   }
 
-  void _showTransferBottomSheet(BuildContext context, Ticket ticket) {
-    showModalBottomSheet(
+  void _showTransferBottomSheet(BuildContext context, Ticket ticket) async {
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _TransferTicketBottomSheet(ticket: ticket),
     );
+
+    // Si la transferencia fue exitosa, refrescar la lista
+    if (result == true && mounted) {
+      // 🔄 Invalidar el provider para forzar recarga
+      ref.invalidate(myActiveTicketsProvider);
+    }
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -235,7 +255,7 @@ class _TransferTicketBottomSheetState
   final _searchController = TextEditingController();
   final _userRepo = UserRepository();
   final _ticketRepo = TicketRepository();
-  
+
   String _searchQuery = '';
   List<User> _searchResults = [];
   bool _isSearching = false;
@@ -243,212 +263,257 @@ class _TransferTicketBottomSheetState
   String? _selectedUserEmail;
   bool _isTransferring = false;
 
+  // 🛡️ Memory leak protection
+  bool _isDisposed = false;
+  Timer? _debounceTimer;
+  String? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
   @override
   void dispose() {
+    _isDisposed = true;
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Obtener el ID del usuario actual para evitar auto-transferencia
+  Future<void> _loadCurrentUser() async {
+    try {
+      final userId = await _userRepo.getCurrentUserIdAsync().timeout(
+        const Duration(seconds: 5),
+      );
+      if (_isDisposed) return;
+      setState(() => _currentUserId = userId);
+    } catch (e) {
+      // Silently fail, solo afecta la validación de auto-transferencia
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.9,
+      initialChildSize: 0.96,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.96,
       builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: EvioFanColors.background,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(EvioRadius.card * 2),
-            ),
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: EdgeInsets.only(top: EvioSpacing.sm),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: EvioFanColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: EvioFanColors.background,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(EvioRadius.card * 2),
               ),
-              
-              // Header
-              Padding(
-                padding: EdgeInsets.all(EvioSpacing.lg),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Transferir Ticket',
-                            style: EvioTypography.h3.copyWith(
-                              color: EvioFanColors.foreground,
-                            ),
-                          ),
-                          SizedBox(height: EvioSpacing.xxs),
-                          Text(
-                            'Busca por email al usuario que recibirá el ticket',
-                            style: EvioTypography.bodySmall.copyWith(
-                              color: EvioFanColors.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: EvioFanColors.foreground),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Search bar
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: EvioSpacing.lg),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por email...',
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: EvioFanColors.mutedForeground,
-                    ),
-                    filled: true,
-                    fillColor: EvioFanColors.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(EvioRadius.input),
-                      borderSide: BorderSide(color: EvioFanColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(EvioRadius.input),
-                      borderSide: BorderSide(color: EvioFanColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(EvioRadius.input),
-                      borderSide: BorderSide(
-                        color: EvioFanColors.primary,
-                        width: 2,
-                      ),
-                    ),
+            ),
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  margin: EdgeInsets.only(top: EvioSpacing.sm),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: EvioFanColors.border,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  onChanged: (value) {
-                    setState(() => _searchQuery = value);
-                    _performSearch(value);
-                  },
                 ),
-              ),
 
-              SizedBox(height: EvioSpacing.md),
-
-              // Results list
-              Expanded(
-                child: _searchQuery.isEmpty
-                    ? Center(
+                // Header
+                Padding(
+                  padding: EdgeInsets.all(EvioSpacing.lg),
+                  child: Row(
+                    children: [
+                      Expanded(
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.person_search,
-                              size: 64,
-                              color: EvioFanColors.mutedForeground,
-                            ),
-                            SizedBox(height: EvioSpacing.md),
                             Text(
-                              'Escribe para buscar usuarios',
-                              style: EvioTypography.bodyMedium.copyWith(
+                              'Transferir Ticket',
+                              style: EvioTypography.h3.copyWith(
+                                color: EvioFanColors.foreground,
+                              ),
+                            ),
+                            SizedBox(height: EvioSpacing.xxs),
+                            Text(
+                              'Busca por email al usuario que recibirá el ticket',
+                              style: EvioTypography.bodySmall.copyWith(
                                 color: EvioFanColors.mutedForeground,
                               ),
                             ),
                           ],
                         ),
-                      )
-                    : _buildSearchResults(scrollController),
-              ),
-
-              // Confirm button
-              if (_selectedUserId != null)
-                Container(
-                  padding: EdgeInsets.all(EvioSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: EvioFanColors.background,
-                    border: Border(
-                      top: BorderSide(color: EvioFanColors.border),
-                    ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          color: EvioFanColors.foreground,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                  child: SafeArea(
-                    top: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(EvioSpacing.sm),
-                          decoration: BoxDecoration(
-                            color: EvioFanColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(EvioRadius.button),
-                          ),
-                          child: Row(
+                ),
+
+                // Search bar
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: EvioSpacing.lg),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por email...',
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: EvioFanColors.mutedForeground,
+                      ),
+                      filled: true,
+                      fillColor: EvioFanColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(EvioRadius.input),
+                        borderSide: BorderSide(color: EvioFanColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(EvioRadius.input),
+                        borderSide: BorderSide(color: EvioFanColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(EvioRadius.input),
+                        borderSide: BorderSide(
+                          color: EvioFanColors.primary,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      if (_isDisposed) return;
+                      setState(() => _searchQuery = value);
+                      _performSearchDebounced(value);
+                    },
+                  ),
+                ),
+
+                SizedBox(height: EvioSpacing.md),
+
+                // Results list
+                Expanded(
+                  child: _searchQuery.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.person,
-                                color: EvioFanColors.primary,
-                                size: 20,
+                                Icons.person_search,
+                                size: 64,
+                                color: EvioFanColors.mutedForeground,
                               ),
-                              SizedBox(width: EvioSpacing.xs),
-                              Expanded(
-                                child: Text(
-                                  'Enviar a: $_selectedUserEmail',
-                                  style: EvioTypography.bodyMedium.copyWith(
-                                    color: EvioFanColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              SizedBox(height: EvioSpacing.md),
+                              Text(
+                                'Escribe para buscar usuarios',
+                                style: EvioTypography.bodyMedium.copyWith(
+                                  color: EvioFanColors.mutedForeground,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        SizedBox(height: EvioSpacing.md),
-                        ElevatedButton(
-                          onPressed: _isTransferring ? null : _confirmTransfer,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: EvioFanColors.primary,
-                            foregroundColor: EvioFanColors.primaryForeground,
-                            padding: EdgeInsets.symmetric(
-                              vertical: EvioSpacing.md,
+                        )
+                      : _buildSearchResults(scrollController),
+                ),
+
+                // Confirm button
+                if (_selectedUserId != null)
+                  Container(
+                    padding: EdgeInsets.all(EvioSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: EvioFanColors.background,
+                      border: Border(
+                        top: BorderSide(color: EvioFanColors.border),
+                      ),
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(EvioSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: EvioFanColors.primary.withValues(
+                                alpha: 0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                EvioRadius.button,
+                              ),
                             ),
-                          ),
-                          child: _isTransferring
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      EvioFanColors.primaryForeground,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  color: EvioFanColors.primary,
+                                  size: 20,
+                                ),
+                                SizedBox(width: EvioSpacing.xs),
+                                Expanded(
+                                  child: Text(
+                                    'Enviar a: $_selectedUserEmail',
+                                    style: EvioTypography.bodyMedium.copyWith(
+                                      color: EvioFanColors.primary,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                )
-                              : const Text('Confirmar Transferencia'),
-                        ),
-                      ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: EvioSpacing.md),
+                          ElevatedButton(
+                            onPressed: _isTransferring
+                                ? null
+                                : _confirmTransfer,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: EvioFanColors.primary,
+                              foregroundColor: EvioFanColors.primaryForeground,
+                              padding: EdgeInsets.symmetric(
+                                vertical: EvioSpacing.md,
+                              ),
+                            ),
+                            child: _isTransferring
+                                ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        EvioFanColors.primaryForeground,
+                                      ),
+                                    ),
+                                  )
+                                : const Text('Confirmar Transferencia'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Future<void> _performSearch(String query) async {
+  /// 🛡️ Debounced search para evitar múltiples requests
+  void _performSearchDebounced(String query) {
+    _debounceTimer?.cancel();
+
     if (query.trim().isEmpty) {
+      if (_isDisposed) return;
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -456,20 +521,52 @@ class _TransferTicketBottomSheetState
       return;
     }
 
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!_isDisposed) {
+        _performSearch(query);
+      }
+    });
+  }
+
+  /// Buscar usuarios
+  Future<void> _performSearch(String query) async {
+    if (_isDisposed) return;
+
     setState(() => _isSearching = true);
 
     try {
-      final results = await _userRepo.searchUsers(query);
-      if (mounted) {
-        setState(() {
-          _searchResults = results;
-          _isSearching = false;
-        });
-      }
+      final results = await _userRepo
+          .searchUsers(query)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw TimeoutException('Búsqueda tardó demasiado'),
+          );
+
+      if (_isDisposed || !mounted) return;
+
+      // Filtrar al usuario actual para evitar auto-transferencia
+      final filteredResults = results
+          .where((user) => user.id != _currentUserId)
+          .toList();
+
+      setState(() {
+        _searchResults = filteredResults;
+        _isSearching = false;
+      });
+    } on TimeoutException catch (e) {
+      if (_isDisposed || !mounted) return;
+      setState(() => _isSearching = false);
+      FloatingDialog.showError(
+        context,
+        'La búsqueda tardó demasiado. Intentá de nuevo.',
+      );
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSearching = false);
-      }
+      if (_isDisposed || !mounted) return;
+      setState(() => _isSearching = false);
+      FloatingDialog.showError(
+        context,
+        'Error al buscar usuarios: ${e.toString()}',
+      );
     }
   }
 
@@ -525,14 +622,13 @@ class _TransferTicketBottomSheetState
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor:
-                      EvioFanColors.primary.withValues(alpha: 0.2),
+                  backgroundColor: EvioFanColors.primary.withValues(alpha: 0.2),
                   backgroundImage: user.avatarUrl != null
                       ? NetworkImage(user.avatarUrl!)
                       : null,
                   child: user.avatarUrl == null
                       ? Text(
-                          (user.fullName ?? user.email)[0].toUpperCase(),
+                          (user.fullName)[0].toUpperCase(),
                           style: TextStyle(
                             color: EvioFanColors.primary,
                             fontWeight: FontWeight.bold,
@@ -552,21 +648,18 @@ class _TransferTicketBottomSheetState
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (user.fullName != null)
-                        Text(
-                          user.email,
-                          style: EvioTypography.bodySmall.copyWith(
-                            color: EvioFanColors.mutedForeground,
-                          ),
+                      SizedBox(height: 2),
+                      Text(
+                        user.email,
+                        style: EvioTypography.bodySmall.copyWith(
+                          color: EvioFanColors.mutedForeground,
                         ),
+                      ),
                     ],
                   ),
                 ),
                 if (isSelected)
-                  Icon(
-                    Icons.check_circle,
-                    color: EvioFanColors.primary,
-                  ),
+                  Icon(Icons.check_circle, color: EvioFanColors.primary),
               ],
             ),
           ),
@@ -576,38 +669,60 @@ class _TransferTicketBottomSheetState
   }
 
   Future<void> _confirmTransfer() async {
-    if (_selectedUserId == null) return;
+    if (_selectedUserId == null || _isDisposed) return;
 
+    // Validación extra: no transferir a uno mismo
+    if (_selectedUserId == _currentUserId) {
+      FloatingDialog.showError(
+        context,
+        'No podés transferir un ticket a vos mismo',
+      );
+      return;
+    }
+
+    // Cerrar teclado si está abierto
+    FocusScope.of(context).unfocus();
+
+    if (_isDisposed) return;
     setState(() => _isTransferring = true);
 
     try {
-      await _ticketRepo.transferTicket(
-        ticketId: widget.ticket.id,
-        toUserId: _selectedUserId!,
-      );
+      await _ticketRepo
+          .transferTicket(
+            ticketId: widget.ticket.id,
+            toUserId: _selectedUserId!,
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () =>
+                throw TimeoutException('La transferencia tardó demasiado'),
+          );
 
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ticket transferido exitosamente'),
-            backgroundColor: EvioFanColors.success,
-          ),
+      if (_isDisposed || !mounted) return;
+
+      // 🔄 Cerrar bottom sheet con resultado exitoso
+      Navigator.pop(context, true);
+
+      // Esperar un frame para que el Navigator.pop termine
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!_isDisposed && mounted) {
+        FloatingDialog.showSuccess(
+          context,
+          'Ticket transferido exitosamente a $_selectedUserEmail',
         );
       }
+    } on TimeoutException catch (e) {
+      if (_isDisposed || !mounted) return;
+      setState(() => _isTransferring = false);
+      FloatingDialog.showError(
+        context,
+        'La transferencia tardó demasiado. Verificá tu conexión e intentá de nuevo.',
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al transferir: $e'),
-            backgroundColor: EvioFanColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isTransferring = false);
-      }
+      if (_isDisposed || !mounted) return;
+      setState(() => _isTransferring = false);
+      FloatingDialog.showError(context, 'Error al transferir: ${e.toString()}');
     }
   }
 }
@@ -639,10 +754,7 @@ class _TicketItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: EvioFanColors.surface,
         borderRadius: BorderRadius.circular(EvioRadius.card),
-        border: Border.all(
-          color: EvioFanColors.border,
-          width: 1,
-        ),
+        border: Border.all(color: EvioFanColors.border, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -742,7 +854,7 @@ class _TicketItem extends StatelessWidget {
                 ),
             ],
           ),
-          
+
           SizedBox(height: EvioSpacing.md),
 
           // Action buttons
@@ -754,9 +866,7 @@ class _TicketItem extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: EvioFanColors.primary,
                     foregroundColor: EvioFanColors.primaryForeground,
-                    padding: EdgeInsets.symmetric(
-                      vertical: EvioSpacing.sm,
-                    ),
+                    padding: EdgeInsets.symmetric(vertical: EvioSpacing.sm),
                   ),
                   child: const Text('VER TICKET'),
                 ),
@@ -769,9 +879,7 @@ class _TicketItem extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: EvioFanColors.foreground,
                       side: BorderSide(color: EvioFanColors.border),
-                      padding: EdgeInsets.symmetric(
-                        vertical: EvioSpacing.sm,
-                      ),
+                      padding: EdgeInsets.symmetric(vertical: EvioSpacing.sm),
                     ),
                     child: const Text('TRANSFERIR'),
                   ),
@@ -784,4 +892,3 @@ class _TicketItem extends StatelessWidget {
     );
   }
 }
-

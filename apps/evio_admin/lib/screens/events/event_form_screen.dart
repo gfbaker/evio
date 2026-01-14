@@ -14,7 +14,6 @@ import '../../widgets/event_form/form_details_card.dart';
 import '../../widgets/event_form/form_location_card.dart';
 import '../../widgets/event_form/form_lineup_card.dart';
 import '../../widgets/event_form/ticket_categories_panel.dart';
-import '../../widgets/event_form/form_features_card.dart';
 import '../../widgets/event_form/form_poster_card.dart';
 import '../../widgets/event_form/form_video_card.dart';
 import '../../widgets/event_form/map_picker_dialog.dart';
@@ -50,6 +49,48 @@ class EventFormScreen extends HookConsumerWidget {
     final organizerDebounce = useRef<Timer?>(null);
     final descriptionDebounce = useRef<Timer?>(null);
     final capacityDebounce = useRef<Timer?>(null);
+    
+    // ✅ ScrollController y Keys para auto-scroll
+    final scrollController = useScrollController();
+    final sectionKeys = useMemoized(() => List.generate(5, (_) => GlobalKey()), []);
+    
+    // ✅ Estado para scroll-spy (sección activa)
+    final currentSection = useState(0);
+    
+    // ✅ Scroll listener para detectar sección visible (scroll-spy)
+    useEffect(() {
+      void onScroll() {
+        // Obtener posiciones de cada sección
+        int visibleSection = 0;
+        double minDistance = double.infinity;
+        
+        for (int i = 0; i < sectionKeys.length; i++) {
+          final key = sectionKeys[i];
+          final ctx = key.currentContext;
+          if (ctx != null) {
+            final box = ctx.findRenderObject() as RenderBox?;
+            if (box != null && box.hasSize) {
+              // Obtener posición relativa al viewport
+              final position = box.localToGlobal(Offset.zero);
+              // Considerar el offset del header (~120px) y un margen
+              final distanceFromTop = (position.dy - 150).abs();
+              
+              if (distanceFromTop < minDistance) {
+                minDistance = distanceFromTop;
+                visibleSection = i;
+              }
+            }
+          }
+        }
+        
+        if (currentSection.value != visibleSection) {
+          currentSection.value = visibleSection;
+        }
+      }
+      
+      scrollController.addListener(onScroll);
+      return () => scrollController.removeListener(onScroll);
+    }, [scrollController, sectionKeys]);
 
     // ✅ Inicializar controllers cuando el evento se carga (modo edición)
     useEffect(() {
@@ -168,36 +209,66 @@ class EventFormScreen extends HookConsumerWidget {
     }, []);
 
     Future<void> pickAndCropImage() async {
-      final picker = ImagePicker();
-      final image = await picker.pickImage(source: ImageSource.gallery);
+      try {
+        final picker = ImagePicker();
+        final image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (image == null) return;
+        if (image == null) return;
 
-      final bytes = await image.readAsBytes();
+        final bytes = await image.readAsBytes().timeout(
+          Duration(seconds: 15),
+          onTimeout: () => throw TimeoutException('Timeout leyendo imagen'),
+        );
 
-      if (!context.mounted) return;
+        if (!context.mounted) return;
 
-      final cropped = await showDialog<Uint8List>(
-        context: context,
-        builder: (_) => ImageCropperDialog(imageBytes: bytes),
-      );
+        final cropped = await showDialog<Uint8List>(
+          context: context,
+          builder: (_) => ImageCropperDialog(imageBytes: bytes),
+        );
 
-      if (cropped != null) {
-        // ✅ Instantáneo (sin debounce)
-        notifier.setImageBytes(cropped);
+        if (!context.mounted) return;
+
+        if (cropped != null) {
+          notifier.setImageBytes(cropped);
+        }
+      } catch (e) {
+        debugPrint('❌ Error en pickAndCropImage: $e');
+        if (context.mounted) {
+          FloatingSnackBar.show(
+            context,
+            message: 'Error al procesar imagen',
+            type: SnackBarType.error,
+          );
+        }
       }
     }
 
     Future<void> pickFullImage() async {
-      final picker = ImagePicker();
-      final image = await picker.pickImage(source: ImageSource.gallery);
+      try {
+        final picker = ImagePicker();
+        final image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (image == null) return;
+        if (image == null) return;
 
-      final bytes = await image.readAsBytes();
+        final bytes = await image.readAsBytes().timeout(
+          Duration(seconds: 15),
+          onTimeout: () => throw TimeoutException('Timeout leyendo imagen'),
+        );
 
-      // Guardar imagen completa sin crop
-      notifier.setFullImageBytes(bytes);
+        if (!context.mounted) return;
+
+        notifier.setFullImageBytes(bytes);
+      } catch (e) {
+        debugPrint('❌ Error en pickFullImage: $e');
+        if (context.mounted) {
+          FloatingSnackBar.show(
+            context,
+            message: 'Error al cargar imagen',
+            type: SnackBarType.error,
+          );
+        }
+      }
     }
 
     Future<void> saveEvent() async {
@@ -252,7 +323,22 @@ class EventFormScreen extends HookConsumerWidget {
       
       debugPrint('💾 [saveEvent] Guardando con producer_id: ${currentUser.producerId}');
 
-      final savedEventId = await notifier.save(producerId: currentUser.producerId!);
+      String? savedEventId;
+      try {
+        savedEventId = await notifier.save(producerId: currentUser.producerId!).timeout(
+          Duration(seconds: 30),
+          onTimeout: () => throw TimeoutException('Timeout guardando evento'),
+        );
+      } catch (e) {
+        debugPrint('❌ Error guardando evento: $e');
+        if (!context.mounted) return;
+        FloatingSnackBar.show(
+          context,
+          message: 'Error de conexión al guardar',
+          type: SnackBarType.error,
+        );
+        return;
+      }
 
       if (!context.mounted) return;
 
@@ -287,25 +373,37 @@ class EventFormScreen extends HookConsumerWidget {
     }
 
     Future<void> selectLocation() async {
-      final result = await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (_) => const MapPickerDialog(),
-      );
-
-      if (result != null) {
-        // ✅ Instantáneo (sin debounce)
-        notifier.setLocation(
-          venueName: result['venue'],
-          address: result['address'],
-          city: result['city'],
-          lat: result['lat'],
-          lng: result['lng'],
+      try {
+        final result = await showDialog<Map<String, dynamic>>(
+          context: context,
+          builder: (_) => const MapPickerDialog(),
         );
+
+        if (!context.mounted) return;
+
+        if (result != null) {
+          notifier.setLocation(
+            venueName: result['venue'],
+            address: result['address'],
+            city: result['city'],
+            lat: result['lat'],
+            lng: result['lng'],
+          );
+        }
+      } catch (e) {
+        debugPrint('❌ Error en selectLocation: $e');
+        if (context.mounted) {
+          FloatingSnackBar.show(
+            context,
+            message: 'Error al seleccionar ubicación',
+            type: SnackBarType.error,
+          );
+        }
       }
     }
 
     return Scaffold(
-      backgroundColor: EvioLightColors.background,
+      backgroundColor: EvioLightColors.surface,
       body: Column(
         children: [
           FormHeader(
@@ -321,12 +419,35 @@ class EventFormScreen extends HookConsumerWidget {
                 final isDesktop = constraints.maxWidth > 1100;
 
                 if (isDesktop) {
+                  void scrollToSection(int index) {
+                    // Actualizar sección activa inmediatamente
+                    currentSection.value = index;
+                    
+                    final key = sectionKeys[index];
+                    final ctx = key.currentContext;
+                    if (ctx != null) {
+                      Scrollable.ensureVisible(
+                        ctx,
+                        duration: Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  }
+                  
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Sidebar de navegación de secciones
+                      _FormSectionNav(
+                        onSectionTap: scrollToSection,
+                        activeIndex: currentSection.value,
+                      ),
+                      
+                      // Contenido del formulario
                       Expanded(
                         flex: 2,
                         child: SingleChildScrollView(
+                          controller: scrollController,
                           padding: EdgeInsets.all(EvioSpacing.xl),
                           child: _buildFormContent(
                             context,
@@ -343,16 +464,18 @@ class EventFormScreen extends HookConsumerWidget {
                             pickAndCropImage,
                             pickFullImage,
                             notifier,
+                            sectionKeys: sectionKeys,
                           ),
                         ),
                       ),
-                      VerticalDivider(width: 1, color: EvioLightColors.border),
-                      Expanded(
-                        flex: 1,
+                      // Panel de preview
+                      SizedBox(
+                        width: 380,
                         child: Container(
                           color: EvioLightColors.surface,
-                          padding: EdgeInsets.all(EvioSpacing.xl),
+                          padding: EdgeInsets.all(EvioSpacing.lg),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 mainAxisAlignment:
@@ -360,24 +483,25 @@ class EventFormScreen extends HookConsumerWidget {
                                 children: [
                                   Text(
                                     'Vista de Usuario',
-                                    style: EvioTypography.h3,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: EvioLightColors.textPrimary,
+                                    ),
                                   ),
                                   Container(
                                     padding: EdgeInsets.symmetric(
-                                      horizontal: EvioSpacing.xs,
-                                      vertical: 4,
+                                      horizontal: EvioSpacing.sm,
+                                      vertical: EvioSpacing.xxs,
                                     ),
                                     decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: EvioLightColors.border,
-                                      ),
+                                      color: EvioLightColors.muted,
                                       borderRadius: BorderRadius.circular(4),
-                                      color: Colors.white,
                                     ),
                                     child: Text(
-                                      'App Preview',
+                                      'Mobile Preview',
                                       style: TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: EvioLightColors.mutedForeground,
                                       ),
                                     ),
@@ -386,22 +510,18 @@ class EventFormScreen extends HookConsumerWidget {
                               ),
                               SizedBox(height: EvioSpacing.lg),
                               Expanded(
-                                child: Align(
-                                  alignment: Alignment.topCenter,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(EvioSpacing.lg),
-                                    child: LivePreviewCard(
-                                      title: state.title,
-                                      mainArtist: state.mainArtist,
-                                      date: state.startDatetime,
-                                      venue: state.venueName,
-                                      city: state.city,
-                                      description: state.description,
-                                      organizerName: state.organizerName,
-                                      lineup: state.lineup,
-                                      categories: state.ticketCategories,
-                                      imageBytes: state.imageBytes,
-                                    ),
+                                child: Center(
+                                  child: LivePreviewCard(
+                                    title: state.title,
+                                    mainArtist: state.mainArtist,
+                                    date: state.startDatetime,
+                                    venue: state.venueName,
+                                    city: state.city,
+                                    description: state.description,
+                                    organizerName: state.organizerName,
+                                    lineup: state.lineup,
+                                    categories: state.ticketCategories,
+                                    imageBytes: state.imageBytes,
                                   ),
                                 ),
                               ),
@@ -475,11 +595,14 @@ class EventFormScreen extends HookConsumerWidget {
     Future<void> Function() selectLocation,
     Future<void> Function() pickAndCropImage,
     Future<void> Function() pickFullImage,
-    EventFormNotifier notifier,
-  ) {
+    EventFormNotifier notifier, {
+    List<GlobalKey>? sectionKeys,
+  }) {
     return Column(
       children: [
+        // 0: Detalles
         RepaintBoundary(
+          key: sectionKeys?[0],
           child: FormDetailsCard(
             titleCtrl: titleCtrl,
             mainArtistCtrl: mainArtistCtrl,
@@ -491,7 +614,9 @@ class EventFormScreen extends HookConsumerWidget {
           ),
         ),
         SizedBox(height: EvioSpacing.xl),
+        // 1: Ubicación
         RepaintBoundary(
+          key: sectionKeys?[1],
           child: FormLocationCard(
           startDate: state.startDatetime,
           startTime: TimeOfDay.fromDateTime(state.startDatetime),
@@ -512,12 +637,15 @@ class EventFormScreen extends HookConsumerWidget {
           ),
         ),
         SizedBox(height: EvioSpacing.xl),
-        // ✅ NUEVO PANEL DE CATEGORÍAS Y TIERS
+        // 2: Tickets
         RepaintBoundary(
+          key: sectionKeys?[2],
           child: TicketCategoriesPanel(eventId: eventId),
         ),
         SizedBox(height: EvioSpacing.xl),
+        // 3: DJs
         RepaintBoundary(
+          key: sectionKeys?[3],
           child: FormLineupCard(
           lineup: state.lineup,
           onAdd: (name, isHeadliner, imageUrl) {
@@ -529,14 +657,9 @@ class EventFormScreen extends HookConsumerWidget {
           ),
         ),
         SizedBox(height: EvioSpacing.xl),
+        // 4: Póster
         RepaintBoundary(
-          child: FormFeaturesCard(
-          selectedFeatures: state.features,
-          onToggle: (feature) => notifier.toggleFeature(feature),
-          ),
-        ),
-        SizedBox(height: EvioSpacing.xl),
-        RepaintBoundary(
+          key: sectionKeys?[4],
           child: FormPosterCard(
           croppedImageBytes: state.imageBytes,
           fullImageBytes: state.fullImageBytes,
@@ -548,14 +671,139 @@ class EventFormScreen extends HookConsumerWidget {
           ),
         ),
         SizedBox(height: EvioSpacing.xl),
+        // Video
         RepaintBoundary(
           child: FormVideoCard(
-          videoUrl: state.videoUrl,
-          onChanged: (url) => notifier.setVideoUrl(url),
+            videoUrl: state.videoUrl,
+            onChanged: (url) => notifier.setVideoUrl(url),
           ),
         ),
         SizedBox(height: 100),
       ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// FORM SECTION NAVIGATION
+// -----------------------------------------------------------------------------
+
+class _FormSectionNav extends StatelessWidget {
+  final ValueChanged<int> onSectionTap;
+  final int activeIndex;
+  
+  const _FormSectionNav({
+    required this.onSectionTap,
+    required this.activeIndex,
+  });
+
+  static const _sections = [
+    ('Detalles', Icons.music_note_outlined),
+    ('Ubicación', Icons.location_on_outlined),
+    ('Tickets', Icons.confirmation_number_outlined),
+    ('DJs', Icons.people_outline),
+    ('Póster', Icons.image_outlined),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 180,
+      padding: EdgeInsets.symmetric(
+        vertical: EvioSpacing.xl,
+        horizontal: EvioSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < _sections.length; i++)
+            _SectionNavItem(
+              icon: _sections[i].$2,
+              label: _sections[i].$1,
+              isActive: i == activeIndex,
+              onTap: () => onSectionTap(i),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _SectionNavItem({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: EvioSpacing.xs),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(EvioRadius.button),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: EvioSpacing.sm,
+            vertical: EvioSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(EvioRadius.button),
+          ),
+          child: Row(
+            children: [
+              // Icono con fondo amarillo si activo
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isActive 
+                      ? EvioLightColors.accent 
+                      : EvioLightColors.muted,
+                  borderRadius: BorderRadius.circular(EvioRadius.button),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: isActive 
+                      ? EvioLightColors.accentForeground 
+                      : EvioLightColors.mutedForeground,
+                ),
+              ),
+              SizedBox(width: EvioSpacing.sm),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                    color: isActive 
+                        ? EvioLightColors.textPrimary 
+                        : EvioLightColors.mutedForeground,
+                  ),
+                ),
+              ),
+              // Indicador vertical amarillo si activo
+              if (isActive)
+                Container(
+                  width: 3,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: EvioLightColors.accent,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

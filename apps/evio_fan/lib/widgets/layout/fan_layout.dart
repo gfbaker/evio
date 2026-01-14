@@ -14,6 +14,7 @@ class FanLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EvioFanColors.background,
+      extendBody: true, // ✅ Permite que el body se extienda debajo del navbar
       body: child,
       bottomNavigationBar: const _FanBottomNav(),
     );
@@ -28,16 +29,31 @@ class _FanBottomNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentLocation = GoRouterState.of(context).uri.path;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: EvioFanColors.surface,
-        border: Border(
-          top: BorderSide(color: EvioFanColors.border, width: 0.5),
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: EvioSpacing.lg,
+          right: EvioSpacing.lg,
+          bottom: EvioSpacing.md,
         ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 64,
+        child: Container(
+          height: 68,
+          padding: EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: EvioFanColors.surface.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(EvioRadius.button + 6),
+            border: Border.all(
+              color: EvioFanColors.border.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -45,28 +61,42 @@ class _FanBottomNav extends ConsumerWidget {
                 icon: Icons.home_rounded,
                 label: 'Home',
                 isActive: currentLocation == '/home',
-                onTap: () => context.go('/home'),
+                onTap: () {
+                  if (!context.mounted) return;
+                  context.go('/home');
+                },
               ),
               _NavItem(
                 icon: Icons.search_rounded,
                 label: 'Explorar',
                 isActive: currentLocation == '/search',
-                onTap: () => context.go('/search'),
+                onTap: () {
+                  if (!context.mounted) return;
+                  context.go('/search');
+                },
               ),
               _NavItem(
                 icon: Icons.confirmation_number_rounded,
                 label: 'Tickets',
                 isActive: currentLocation == '/tickets',
                 onTap: () {
-                  // ✅ Auth guard para Tickets
-                  final isAuthenticated = ref.read(isAuthenticatedProvider);
+                  if (!context.mounted) return;
+                  
+                  // ✅ Auth guard para Tickets con try-catch
+                  try {
+                    final isAuthenticated = ref.read(isAuthenticatedProvider);
 
-                  if (!isAuthenticated) {
-                    AuthBottomSheet.show(context, redirectTo: '/tickets');
-                    return;
+                    if (!isAuthenticated) {
+                      AuthBottomSheet.show(context, redirectTo: '/tickets');
+                      return;
+                    }
+
+                    context.go('/tickets');
+                  } catch (e) {
+                    debugPrint('❌ Error en navegación a Tickets: $e');
+                    // Fallback: intentar navegar igual
+                    context.go('/tickets');
                   }
-
-                  context.go('/tickets');
                 },
               ),
               _NavItem(
@@ -74,15 +104,23 @@ class _FanBottomNav extends ConsumerWidget {
                 label: 'Perfil',
                 isActive: currentLocation == '/profile',
                 onTap: () {
-                  // ✅ Auth guard para Profile
-                  final isAuthenticated = ref.read(isAuthenticatedProvider);
+                  if (!context.mounted) return;
+                  
+                  // ✅ Auth guard para Profile con try-catch
+                  try {
+                    final isAuthenticated = ref.read(isAuthenticatedProvider);
 
-                  if (!isAuthenticated) {
-                    AuthBottomSheet.show(context, redirectTo: '/profile');
-                    return;
+                    if (!isAuthenticated) {
+                      AuthBottomSheet.show(context, redirectTo: '/profile');
+                      return;
+                    }
+
+                    context.go('/profile');
+                  } catch (e) {
+                    debugPrint('❌ Error en navegación a Profile: $e');
+                    // Fallback: intentar navegar igual
+                    context.go('/profile');
                   }
-
-                  context.go('/profile');
                 },
               ),
             ],
@@ -109,35 +147,44 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: EvioSpacing.xs),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          margin: EdgeInsets.symmetric(horizontal: 2), // Separación entre items
           decoration: BoxDecoration(
-            color: isActive ? EvioFanColors.activeTab : Colors.transparent,
+            color: isActive 
+                ? EvioFanColors.muted.withValues(alpha: 0.4) // Gris mate transparente
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(EvioRadius.button),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: EvioSpacing.iconSize,
-                color: isActive
-                    ? EvioFanColors.activeTabForeground
-                    : EvioFanColors.inactiveTab,
-              ),
-              SizedBox(height: EvioSpacing.xxs),
-              Text(
-                label,
-                style: EvioTypography.labelSmall.copyWith(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 24,
                   color: isActive
-                      ? EvioFanColors.activeTabForeground
-                      : EvioFanColors.inactiveTab,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                      ? EvioFanColors.primary // Amarillo cuando está activo
+                      : EvioFanColors.mutedForeground, // Gris cuando no está activo
                 ),
-              ),
-            ],
+                SizedBox(height: 4),
+                Text(
+                  label,
+                  style: EvioTypography.labelSmall.copyWith(
+                    color: isActive
+                        ? EvioFanColors.primary // Amarillo cuando está activo
+                        : EvioFanColors.mutedForeground, // Gris cuando no está activo
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

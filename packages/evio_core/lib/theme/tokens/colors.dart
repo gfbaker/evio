@@ -80,13 +80,12 @@ abstract class EvioLightColors {
   static const Color muted = Color(0xFFECECF0);
   static const Color mutedForeground = Color(0xFF717182);
 
-  // Accent
-  static const Color accent = Color(
-    0xFFF8F8F8,
-  ); // Cambiado a hover color del mockup
-  static const Color accentForeground = Color(
-    0xFF343434,
-  ); // Agregado del mockup
+  // Accent - Amarillo dorado (highlight principal)
+  static const Color accent = Color(0xFFF7CD04);
+  static const Color accentForeground = Color(0xFF000000);
+  
+  // Hover state (gris claro)
+  static const Color hover = Color(0xFFF8F8F8);
 
   // Text
   static const Color foreground = Color(0xFF030213);

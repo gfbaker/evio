@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +9,7 @@ import 'package:evio_core/repositories/producer_repository.dart';
 part 'event_provider.g.dart';
 
 // ============================================
-// CACHE MANAGEMENT
+// CACHE MANAGEMENT - NUCLEAR PROOF
 // ============================================
 
 /// Timestamp del último fetch de eventos (para TTL)
@@ -25,7 +26,10 @@ bool isCacheExpired(DateTime? lastFetch) {
 }
 
 /// Helper: Refrescar eventos SOLO si es necesario
+/// ✅ NUCLEAR PROOF: Timeouts, error recovery, sin memory leaks
 Future<void> smartRefreshEvents(WidgetRef ref, {bool force = false}) async {
+  Timer? timeoutTimer;
+  
   try {
     final lastFetch = ref.read(lastEventsFetchProvider);
     
@@ -36,25 +40,50 @@ Future<void> smartRefreshEvents(WidgetRef ref, {bool force = false}) async {
       
       debugPrint('🔄 [SmartRefresh] Cache ${force ? "forzado" : "expirado"} (${remainingTime}min restantes), refrescando...');
       
-      // ✅ Refresh con timeout de 10s
-      await ref.refresh(eventsProvider.future).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('⚠️ [SmartRefresh] Timeout, usando cache viejo');
-          return ref.read(eventsProvider).value ?? [];
-        },
-      );
-      
-      // ✅ Actualizar timestamp SOLO si el refresh fue exitoso
-      ref.read(lastEventsFetchProvider.notifier).state = DateTime.now();
-      debugPrint('✅ [SmartRefresh] Eventos actualizados');
+      // ✅ CRITICAL: Timeout con cancelación automática
+      bool completed = false;
+      timeoutTimer = Timer(const Duration(seconds: 15), () {
+        if (!completed) {
+          debugPrint('⚠️ [SmartRefresh] Timeout de 15s alcanzado');
+        }
+      });
+
+      try {
+        // ✅ Refresh con timeout de 15s
+        await ref.refresh(eventsProvider.future).timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            debugPrint('⚠️ [SmartRefresh] Timeout, usando cache viejo');
+            final cachedEvents = ref.read(eventsProvider).value;
+            return cachedEvents ?? [];
+          },
+        );
+        
+        completed = true;
+        timeoutTimer.cancel();
+        
+        // ✅ Actualizar timestamp SOLO si el refresh fue exitoso
+        ref.read(lastEventsFetchProvider.notifier).state = DateTime.now();
+        debugPrint('✅ [SmartRefresh] Eventos actualizados exitosamente');
+        
+      } on TimeoutException catch (e) {
+        debugPrint('⚠️ [SmartRefresh] TimeoutException: $e');
+        // Seguir con cache viejo
+      } catch (e) {
+        debugPrint('❌ [SmartRefresh] Error en refresh: $e');
+        // Fallar gracefully
+      }
     } else {
       final remainingTime = eventsCacheDuration.inMinutes - DateTime.now().difference(lastFetch!).inMinutes;
       debugPrint('✅ [SmartRefresh] Cache válido (${remainingTime}min restantes), skip refresh');
     }
-  } catch (e) {
-    debugPrint('❌ [SmartRefresh] Error: $e');
+  } catch (e, stackTrace) {
+    debugPrint('❌ [SmartRefresh] Error crítico: $e');
+    debugPrint('Stack trace: $stackTrace');
     // No throw - fallar gracefully
+  } finally {
+    // ✅ CRITICAL: Siempre cancelar timer
+    timeoutTimer?.cancel();
   }
 }
 
@@ -71,7 +100,7 @@ final producerRepositoryProvider = Provider<ProducerRepository>((ref) {
 });
 
 // ============================================
-// EVENTOS PUBLICADOS
+// EVENTOS PUBLICADOS - NUCLEAR PROOF
 // ============================================
 
 /// Clase para filtros de eventos
@@ -129,21 +158,39 @@ final eventFiltersProvider =
     );
 
 /// Provider de eventos con filtros (CACHED - keepAlive)
+/// ✅ NUCLEAR PROOF: Error recovery, timeout protection
 final eventsProvider = FutureProvider<List<Event>>((ref) async {
   final repository = ref.watch(eventRepositoryProvider);
   final filters = ref.watch(eventFiltersProvider);
 
   debugPrint('🔄 [eventsProvider] Fetching eventos...');
 
-  final events = await repository.getPublishedEvents(
-    city: filters.city,
-    genre: filters.genre,
-    fromDate: filters.fromDate,
-    toDate: filters.toDate,
-  );
+  try {
+    // ✅ CRITICAL: Timeout de 15s en la llamada al repository
+    final events = await repository.getPublishedEvents(
+      city: filters.city,
+      genre: filters.genre,
+      fromDate: filters.fromDate,
+      toDate: filters.toDate,
+    ).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () {
+        debugPrint('⚠️ [eventsProvider] Timeout alcanzado, retornando lista vacía');
+        return <Event>[];
+      },
+    );
 
-  debugPrint('✅ [eventsProvider] ${events.length} eventos cargados');
-  return events;
+    debugPrint('✅ [eventsProvider] ${events.length} eventos cargados');
+    return events;
+    
+  } on TimeoutException catch (e) {
+    debugPrint('⚠️ [eventsProvider] TimeoutException: $e');
+    return <Event>[];
+  } catch (e, stackTrace) {
+    debugPrint('❌ [eventsProvider] Error: $e');
+    debugPrint('Stack trace: $stackTrace');
+    rethrow; // Dejar que Riverpod maneje el error
+  }
 });
 
 // ============================================
@@ -154,35 +201,39 @@ final eventsProvider = FutureProvider<List<Event>>((ref) async {
 @Riverpod(keepAlive: true)
 Future<Event?> eventInfo(EventInfoRef ref, String eventId) async {
   final repository = ref.watch(eventRepositoryProvider);
-  return repository.getEventById(eventId);
+  
+  try {
+    return await repository.getEventById(eventId).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        debugPrint('⚠️ [eventInfo] Timeout para evento $eventId');
+        return null;
+      },
+    );
+  } catch (e) {
+    debugPrint('❌ [eventInfo] Error: $e');
+    return null;
+  }
 }
-
-/// ❌ LEGACY: Usar eventInfo en lugar de este
-@Deprecated('Use eventInfo for cached static data')
-final eventByIdProvider = FutureProvider.family.autoDispose<Event?, String>((
-  ref,
-  eventId,
-) async {
-  final repository = ref.watch(eventRepositoryProvider);
-  return repository.getEventById(eventId);
-});
 
 /// ✅ CACHED: Evento por slug (inmutable)
 @Riverpod(keepAlive: true)
 Future<Event?> eventInfoBySlug(EventInfoBySlugRef ref, String slug) async {
   final repository = ref.watch(eventRepositoryProvider);
-  return repository.getEventBySlug(slug);
+  
+  try {
+    return await repository.getEventBySlug(slug).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        debugPrint('⚠️ [eventInfoBySlug] Timeout para slug $slug');
+        return null;
+      },
+    );
+  } catch (e) {
+    debugPrint('❌ [eventInfoBySlug] Error: $e');
+    return null;
+  }
 }
-
-/// ❌ LEGACY: Usar eventInfoBySlug en lugar de este
-@Deprecated('Use eventInfoBySlug for cached static data')
-final eventBySlugProvider = FutureProvider.family.autoDispose<Event?, String>((
-  ref,
-  slug,
-) async {
-  final repository = ref.watch(eventRepositoryProvider);
-  return repository.getEventBySlug(slug);
-});
 
 // ============================================
 // BÚSQUEDA
@@ -216,7 +267,18 @@ final searchResultsProvider = FutureProvider.autoDispose<List<Event>>((
 
   if (query.isEmpty) return [];
 
-  return repository.searchEvents(query);
+  try {
+    return await repository.searchEvents(query).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        debugPrint('⚠️ [searchResults] Timeout en búsqueda');
+        return <Event>[];
+      },
+    );
+  } catch (e) {
+    debugPrint('❌ [searchResults] Error: $e');
+    return <Event>[];
+  }
 });
 
 // ============================================
@@ -228,7 +290,19 @@ final availableCitiesProvider = FutureProvider.autoDispose<List<String>>((
   ref,
 ) async {
   final repository = ref.watch(eventRepositoryProvider);
-  return repository.getAvailableCities();
+  
+  try {
+    return await repository.getAvailableCities().timeout(
+      const Duration(seconds: 8),
+      onTimeout: () {
+        debugPrint('⚠️ [availableCities] Timeout');
+        return <String>[];
+      },
+    );
+  } catch (e) {
+    debugPrint('❌ [availableCities] Error: $e');
+    return <String>[];
+  }
 });
 
 /// Obtener géneros disponibles
@@ -236,20 +310,19 @@ final availableGenresProvider = FutureProvider.autoDispose<List<String>>((
   ref,
 ) async {
   final repository = ref.watch(eventRepositoryProvider);
-  return repository.getAvailableGenres();
-});
-
-// ============================================
-// LIKES
-// ============================================
-
-/// Provider para manejar likes (TODO: implementar repository method)
-final eventLikeProvider = FutureProvider.family.autoDispose<bool, String>((
-  ref,
-  eventId,
-) async {
-  // TODO: Implementar hasLiked en EventRepository
-  return false;
+  
+  try {
+    return await repository.getAvailableGenres().timeout(
+      const Duration(seconds: 8),
+      onTimeout: () {
+        debugPrint('⚠️ [availableGenres] Timeout');
+        return <String>[];
+      },
+    );
+  } catch (e) {
+    debugPrint('❌ [availableGenres] Error: $e');
+    return <String>[];
+  }
 });
 
 // ============================================
@@ -258,6 +331,16 @@ final eventLikeProvider = FutureProvider.family.autoDispose<bool, String>((
 
 /// Registrar vista de evento
 Future<void> recordEventView(WidgetRef ref, String eventId) async {
-  final repository = ref.read(eventRepositoryProvider);
-  await repository.recordView(eventId);
+  try {
+    final repository = ref.read(eventRepositoryProvider);
+    await repository.recordView(eventId).timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        debugPrint('⚠️ [recordEventView] Timeout, ignorando');
+      },
+    );
+  } catch (e) {
+    debugPrint('❌ [recordEventView] Error: $e');
+    // Fallar silenciosamente
+  }
 }

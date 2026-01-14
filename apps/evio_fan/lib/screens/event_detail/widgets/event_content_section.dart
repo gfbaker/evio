@@ -29,23 +29,30 @@ class EventContentSection extends ConsumerStatefulWidget {
 class _EventContentSectionState extends ConsumerState<EventContentSection>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<Offset> _slideAnimation;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    
+    // ⚡ OPCIÓN A: Fade in simple, sin slide
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOut,
     ));
-    _controller.forward();
+    
+    // ⚡ Empieza casi inmediatamente (sincronizado con hero)
+    Future.delayed(Duration(milliseconds: 200), () {
+      if (mounted) _controller.forward();
+    });
   }
 
   @override
@@ -56,46 +63,43 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
 
   @override
   Widget build(BuildContext context) {
-    return SlideTransition(
-      position: _slideAnimation,
-      child: FadeTransition(
-        opacity: _controller,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: EvioSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: EvioSpacing.lg),
-              if (widget.event.lineup.isNotEmpty) ...[
-                _buildLineUpSection(ref),
-                SizedBox(height: EvioSpacing.xl),
-              ],
-              if (widget.event.description != null && widget.event.description!.isNotEmpty) ...[
-                _buildDescriptionSection(),
-                SizedBox(height: EvioSpacing.xl),
-              ],
-              
-              // ✅ NUEVO: Sección de tickets con clave para scroll
-              Container(
-                key: widget.ticketsSectionKey, // ✅ Agregar key aquí
-                child: CategoryTicketsSection(
-                  categoriesAsync: widget.categoriesAsync,
-                  quantities: widget.quantities,
-                  onQuantityChanged: widget.onQuantityChanged,
-                ),
-              ),
-              
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: EvioSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: EvioSpacing.lg),
+            if (widget.event.lineup.isNotEmpty) ...[
+              _buildLineUpSection(ref),
               SizedBox(height: EvioSpacing.xl),
-              
-              // Ubicación (Maps)
-              EventLocationSection(event: widget.event),
-              
-              SizedBox(height: EvioSpacing.xl),
-              
-              // Productora
-              EventProducerSection(event: widget.event),
             ],
-          ),
+            if (widget.event.description != null && widget.event.description!.isNotEmpty) ...[
+              _buildDescriptionSection(),
+              SizedBox(height: EvioSpacing.xl),
+            ],
+            
+            // ✅ NUEVO: Sección de tickets con clave para scroll
+            Container(
+              key: widget.ticketsSectionKey,
+              child: CategoryTicketsSection(
+                categoriesAsync: widget.categoriesAsync,
+                quantities: widget.quantities,
+                onQuantityChanged: widget.onQuantityChanged,
+              ),
+            ),
+            
+            SizedBox(height: EvioSpacing.xl),
+            
+            // Ubicación (Maps)
+            EventLocationSection(event: widget.event),
+            
+            SizedBox(height: EvioSpacing.xl),
+            
+            // Productora
+            EventProducerSection(event: widget.event),
+          ],
         ),
       ),
     );

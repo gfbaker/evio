@@ -32,10 +32,12 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(EvioRadius.card),
+        ),
         child: Container(
           width: 480,
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(EvioSpacing.xl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,30 +45,32 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: EvioLightColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      color: EvioLightColors.accent,
+                      borderRadius: BorderRadius.circular(EvioRadius.button),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.person_add,
-                      color: EvioLightColors.primary,
-                      size: 24,
+                      color: EvioLightColors.accentForeground,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  SizedBox(width: EvioSpacing.sm),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Invitar Usuario',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.w600,
+                            color: EvioLightColors.textPrimary,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        SizedBox(height: 2),
                         Text(
                           'El usuario aparecerá como pendiente hasta que cree su cuenta',
                           style: TextStyle(
@@ -78,203 +82,75 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints: BoxConstraints(),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: EvioSpacing.lg),
               Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Nombre',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: EvioLightColors.foreground,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: firstNameController,
-                          decoration: InputDecoration(
-                            hintText: 'Juan',
-                            hintStyle: const TextStyle(
-                              color: EvioLightColors.mutedForeground,
-                              fontSize: 14,
-                            ),
-                            filled: true,
-                            fillColor: EvioLightColors.inputBackground,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: EvioLightColors.border,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: EvioLightColors.border,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFD1D5DB),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: _DialogField(
+                      label: 'Nombre',
+                      controller: firstNameController,
+                      hint: 'Juan',
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: EvioSpacing.sm),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Apellido',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: EvioLightColors.foreground,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: lastNameController,
-                          decoration: InputDecoration(
-                            hintText: 'Pérez',
-                            hintStyle: const TextStyle(
-                              color: EvioLightColors.mutedForeground,
-                              fontSize: 14,
-                            ),
-                            filled: true,
-                            fillColor: EvioLightColors.inputBackground,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: EvioLightColors.border,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: EvioLightColors.border,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFD1D5DB),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: _DialogField(
+                      label: 'Apellido',
+                      controller: lastNameController,
+                      hint: 'Pérez',
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Email',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: EvioLightColors.foreground,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
+              SizedBox(height: EvioSpacing.md),
+              _DialogField(
+                label: 'Email',
                 controller: emailController,
+                hint: 'usuario@email.com',
+                prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  hintText: 'usuario@email.com',
-                  hintStyle: const TextStyle(
-                    color: EvioLightColors.mutedForeground,
-                    fontSize: 14,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.email_outlined,
-                    size: 18,
-                    color: EvioLightColors.mutedForeground,
-                  ),
-                  filled: true,
-                  fillColor: EvioLightColors.inputBackground,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: EvioLightColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: EvioLightColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFD1D5DB),
-                      width: 1.5,
-                    ),
-                  ),
-                ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: EvioSpacing.md),
+              Text(
                 'Rol',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: EvioLightColors.foreground,
+                  color: EvioLightColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: EvioSpacing.xs),
               ValueListenableBuilder<UserRole>(
                 valueListenable: roleNotifier,
                 builder: (context, role, _) {
                   return Container(
                     decoration: BoxDecoration(
-                      color: EvioLightColors.inputBackground,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: EvioLightColors.border),
+                      color: EvioLightColors.surface,
+                      borderRadius: BorderRadius.circular(EvioRadius.input),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<UserRole>(
                         value: role,
                         isExpanded: true,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        icon: const Icon(
+                        padding: EdgeInsets.symmetric(horizontal: EvioSpacing.md),
+                        icon: Icon(
                           Icons.keyboard_arrow_down,
                           color: EvioLightColors.mutedForeground,
                         ),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: EvioLightColors.foreground,
+                          color: EvioLightColors.textPrimary,
                           fontWeight: FontWeight.w500,
                         ),
-                        dropdownColor: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
+                        dropdownColor: EvioLightColors.card,
+                        borderRadius: BorderRadius.circular(EvioRadius.card),
                         items: [
                           DropdownMenuItem(
                             value: UserRole.admin,
@@ -293,52 +169,34 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: EvioSpacing.xl),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: const Text(
-                      'Cancelar',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child: Text('Cancelar'),
                   ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
+                  SizedBox(width: EvioSpacing.sm),
+                  FilledButton.icon(
                     onPressed: () async {
                       final firstName = firstNameController.text.trim();
                       final lastName = lastNameController.text.trim();
                       final email = emailController.text.trim();
 
-                      if (firstName.isEmpty ||
-                          lastName.isEmpty ||
-                          email.isEmpty) {
+                      if (firstName.isEmpty || lastName.isEmpty || email.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text('Todos los campos son requeridos'),
-                            backgroundColor: Colors.red,
+                            backgroundColor: EvioLightColors.destructive,
                           ),
                         );
                         return;
                       }
 
                       try {
-                        final currentUser = await ref.read(
-                          currentUserProvider.future,
-                        );
-                        if (currentUser?.producerId == null || _isDisposed) {
-                          return;
-                        }
+                        final currentUser = await ref.read(currentUserProvider.future);
+                        if (currentUser?.producerId == null || _isDisposed) return;
 
                         final repo = ref.read(userRepositoryProvider);
                         final invitation = UserInvitation(
@@ -355,15 +213,12 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
 
                         if (_isDisposed || !mounted) return;
                         Navigator.pop(context);
-
                         ref.invalidate(producerInvitationsProvider);
 
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                              'Invitación creada para $firstName $lastName',
-                            ),
-                            backgroundColor: Colors.green,
+                            content: Text('Invitación creada para $firstName $lastName'),
+                            backgroundColor: EvioLightColors.success,
                           ),
                         );
                       } catch (e) {
@@ -371,27 +226,19 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
+                            backgroundColor: EvioLightColors.destructive,
                           ),
                         );
                       }
                     },
-                    icon: const Icon(Icons.person_add, size: 16),
-                    label: const Text(
-                      'Agregar Usuario',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                    icon: Icon(Icons.person_add, size: 16),
+                    label: Text('Agregar Usuario'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: EvioLightColors.accent,
+                      foregroundColor: EvioLightColors.accentForeground,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(EvioRadius.button),
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: EvioLightColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      elevation: 0,
                     ),
                   ),
                 ],
@@ -407,22 +254,23 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Eliminar Usuario'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(EvioRadius.card),
+        ),
+        title: Text('Eliminar Usuario'),
         content: Text('¿Estás seguro de eliminar a ${user.fullName}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              elevation: 0,
+            style: FilledButton.styleFrom(
+              backgroundColor: EvioLightColors.destructive,
+              foregroundColor: EvioLightColors.destructiveForeground,
             ),
-            child: const Text('Eliminar'),
+            child: Text('Eliminar'),
           ),
         ],
       ),
@@ -438,15 +286,15 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
       ref.invalidate(producerUsersProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Usuario eliminado'),
-          backgroundColor: Colors.green,
+          backgroundColor: EvioLightColors.success,
         ),
       );
     } catch (e) {
       if (_isDisposed || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: $e'), backgroundColor: EvioLightColors.destructive),
       );
     }
   }
@@ -462,15 +310,15 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
       ref.invalidate(producerInvitationsProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Invitación eliminada'),
-          backgroundColor: Colors.green,
+          backgroundColor: EvioLightColors.success,
         ),
       );
     } catch (e) {
       if (_isDisposed || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: $e'), backgroundColor: EvioLightColors.destructive),
       );
     }
   }
@@ -480,75 +328,75 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
     final usersAsync = ref.watch(producerUsersProvider);
     final invitationsAsync = ref.watch(producerInvitationsProvider);
 
-    return Column(
-      children: [
-        _buildActionHeader(),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStatsCards(usersAsync, invitationsAsync),
-                const SizedBox(height: 24),
-                _buildSearchBar(),
-                const SizedBox(height: 24),
-                usersAsync.when(
-                  data: (users) {
-                    final filteredUsers = users.where((user) {
-                      if (_searchQuery.isEmpty) return true;
-                      final query = _searchQuery.toLowerCase();
-                      return user.fullName.toLowerCase().contains(query) ||
-                          user.email.toLowerCase().contains(query);
-                    }).toList();
+    return Container(
+      color: EvioLightColors.surface,
+      child: Column(
+        children: [
+          _buildActionHeader(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(EvioSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatsCards(usersAsync, invitationsAsync),
+                  SizedBox(height: EvioSpacing.lg),
+                  _buildSearchBar(),
+                  SizedBox(height: EvioSpacing.lg),
+                  usersAsync.when(
+                    data: (users) {
+                      final filteredUsers = users.where((user) {
+                        if (_searchQuery.isEmpty) return true;
+                        final query = _searchQuery.toLowerCase();
+                        return user.fullName.toLowerCase().contains(query) ||
+                            user.email.toLowerCase().contains(query);
+                      }).toList();
 
-                    return Column(
-                      children: [
-                        ...filteredUsers.map((user) => _buildUserCard(user)),
-                        const SizedBox(height: 16),
-                        invitationsAsync.when(
-                          data: (invitations) => Column(
-                            children: invitations
-                                .map((inv) => _buildInvitationCard(inv))
-                                .toList(),
-                          ),
-                          loading: () => const SizedBox.shrink(),
-                          error: (_, __) => const SizedBox.shrink(),
-                        ),
-                      ],
-                    );
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Error: $e')),
-                ),
-              ],
+                      final pendingInvitations = invitationsAsync.value ?? [];
+
+                      if (filteredUsers.isEmpty && pendingInvitations.isEmpty) {
+                        return _buildEmptyState();
+                      }
+
+                      return Column(
+                        children: [
+                          ...filteredUsers.map((user) => _buildUserCard(user)),
+                          ...pendingInvitations.map((inv) => _buildInvitationCard(inv)),
+                        ],
+                      );
+                    },
+                    loading: () => Center(
+                      child: CircularProgressIndicator(color: EvioLightColors.accent),
+                    ),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildActionHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: EvioLightColors.border)),
-      ),
+      padding: EdgeInsets.symmetric(horizontal: EvioSpacing.lg, vertical: EvioSpacing.md),
+      color: EvioLightColors.surface,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          ElevatedButton.icon(
+          FilledButton.icon(
             onPressed: _showInviteDialog,
-            icon: const Icon(Icons.person_add, size: 18),
-            label: const Text('Invitar Usuario'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: EvioLightColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            icon: Icon(Icons.person_add, size: 18),
+            label: Text('Invitar Usuario'),
+            style: FilledButton.styleFrom(
+              backgroundColor: EvioLightColors.accent,
+              foregroundColor: EvioLightColors.accentForeground,
+              padding: EdgeInsets.symmetric(horizontal: EvioSpacing.lg, vertical: EvioSpacing.sm),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(EvioRadius.button),
+              ),
             ),
           ),
         ],
@@ -573,92 +421,33 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth > 900;
         return Wrap(
-          spacing: 16,
-          runSpacing: 16,
+          spacing: EvioSpacing.md,
+          runSpacing: EvioSpacing.md,
           children: [
-            _buildStatCard(
+            _StatCard(
               title: 'Total Usuarios',
               value: totalUsers.toString(),
               icon: Icons.people,
-              color: EvioLightColors.primary,
-              width: isDesktop
-                  ? (constraints.maxWidth - 32) / 3
-                  : double.infinity,
+              color: EvioLightColors.accent,
+              width: isDesktop ? (constraints.maxWidth - 32) / 3 : double.infinity,
             ),
-            _buildStatCard(
+            _StatCard(
               title: 'Activos',
               value: activeUsers.toString(),
               icon: Icons.check_circle,
-              color: Colors.green,
-              width: isDesktop
-                  ? (constraints.maxWidth - 32) / 3
-                  : double.infinity,
+              color: EvioLightColors.success,
+              width: isDesktop ? (constraints.maxWidth - 32) / 3 : double.infinity,
             ),
-            _buildStatCard(
+            _StatCard(
               title: 'Pendientes',
               value: pendingInvitations.toString(),
               icon: Icons.pending,
               color: Colors.orange,
-              width: isDesktop
-                  ? (constraints.maxWidth - 32) / 3
-                  : double.infinity,
+              width: isDesktop ? (constraints.maxWidth - 32) / 3 : double.infinity,
             ),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    required double width,
-  }) {
-    return SizedBox(
-      width: width,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: EvioLightColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 24, color: color),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: EvioLightColors.mutedForeground,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -671,15 +460,11 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
       },
       decoration: InputDecoration(
         hintText: 'Buscar usuarios...',
-        hintStyle: const TextStyle(color: EvioLightColors.mutedForeground),
-        prefixIcon: const Icon(
-          Icons.search,
-          size: 20,
-          color: EvioLightColors.mutedForeground,
-        ),
+        hintStyle: TextStyle(color: EvioLightColors.mutedForeground),
+        prefixIcon: Icon(Icons.search, size: 20, color: EvioLightColors.mutedForeground),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear, size: 20),
+                icon: Icon(Icons.clear, size: 20),
                 onPressed: () {
                   if (_isDisposed) return;
                   _searchController.clear();
@@ -688,22 +473,11 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
               )
             : null,
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
+        fillColor: EvioLightColors.card,
+        contentPadding: EdgeInsets.symmetric(horizontal: EvioSpacing.md, vertical: EvioSpacing.sm),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: EvioLightColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: EvioLightColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFD1D5DB), width: 1.5),
+          borderRadius: BorderRadius.circular(EvioRadius.input),
+          borderSide: BorderSide.none,
         ),
       ),
     );
@@ -714,28 +488,24 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
     final isCurrentUser = currentUser?.id == user.id;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: EvioSpacing.sm),
+      padding: EdgeInsets.all(EvioSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EvioLightColors.border),
+        color: EvioLightColors.card,
+        borderRadius: BorderRadius.circular(EvioRadius.card),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              color: EvioLightColors.muted,
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: EvioLightColors.accent.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.person,
-              color: EvioLightColors.mutedForeground,
-            ),
+            child: Icon(Icons.person, color: EvioLightColors.accent),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: EvioSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,22 +514,20 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                   children: [
                     Text(
                       user.fullName,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
+                        color: EvioLightColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: EvioSpacing.xs),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: user.isAdmin
-                            ? EvioLightColors.primary.withValues(alpha: 0.1)
+                            ? EvioLightColors.accent
                             : EvioLightColors.muted,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         user.role.displayName,
@@ -767,23 +535,20 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: user.isAdmin
-                              ? EvioLightColors.primary
+                              ? EvioLightColors.accentForeground
                               : EvioLightColors.mutedForeground,
                         ),
                       ),
                     ),
                     if (isCurrentUser) ...[
-                      const SizedBox(width: 8),
+                      SizedBox(width: EvioSpacing.xs),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.blue.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Tú',
                           style: TextStyle(
                             fontSize: 11,
@@ -795,11 +560,11 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 2),
                 Text(
                   user.email,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: 13,
                     color: EvioLightColors.mutedForeground,
                   ),
                 ),
@@ -808,7 +573,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
           ),
           if (!isCurrentUser)
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              icon: Icon(Icons.delete_outline, color: EvioLightColors.destructive),
               onPressed: () => _deleteUser(user),
               tooltip: 'Eliminar',
             ),
@@ -819,25 +584,24 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
 
   Widget _buildInvitationCard(UserInvitation invitation) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: EvioSpacing.sm),
+      padding: EdgeInsets.all(EvioSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        color: EvioLightColors.card,
+        borderRadius: BorderRadius.circular(EvioRadius.card),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
+              color: Colors.orange.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.mail_outline, color: Colors.orange),
+            child: Icon(Icons.mail_outline, color: Colors.orange),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: EvioSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -846,22 +610,20 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                   children: [
                     Text(
                       invitation.email,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
+                        color: EvioLightColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: EvioSpacing.xs),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Pendiente',
                         style: TextStyle(
                           fontSize: 11,
@@ -872,11 +634,11 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 2),
                 Text(
                   'Rol: ${invitation.role.displayName}',
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: 13,
                     color: EvioLightColors.mutedForeground,
                   ),
                 ),
@@ -884,12 +646,177 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: Icon(Icons.delete_outline, color: EvioLightColors.destructive),
             onPressed: () => _deleteInvitation(invitation),
             tooltip: 'Eliminar invitación',
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(EvioSpacing.xxl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Sin colaboradores',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: EvioLightColors.textPrimary,
+              ),
+            ),
+            SizedBox(height: EvioSpacing.xs),
+            Text(
+              'Invita colaboradores para gestionar\ntus eventos juntos',
+              style: TextStyle(
+                fontSize: 14,
+                color: EvioLightColors.mutedForeground,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: EvioSpacing.lg),
+            FilledButton.icon(
+              onPressed: _showInviteDialog,
+              icon: Icon(Icons.person_add, size: 18),
+              label: Text('Invitar Primer Usuario'),
+              style: FilledButton.styleFrom(
+                backgroundColor: EvioLightColors.accent,
+                foregroundColor: EvioLightColors.accentForeground,
+                padding: EdgeInsets.symmetric(horizontal: EvioSpacing.xl, vertical: EvioSpacing.md),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(EvioRadius.button),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// WIDGETS AUXILIARES
+// -----------------------------------------------------------------------------
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final double width;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: EdgeInsets.all(EvioSpacing.lg),
+        decoration: BoxDecoration(
+          color: EvioLightColors.card,
+          borderRadius: BorderRadius.circular(EvioRadius.card),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(EvioRadius.button),
+              ),
+              child: Icon(icon, size: 22, color: color),
+            ),
+            SizedBox(width: EvioSpacing.md),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: EvioLightColors.mutedForeground,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: EvioLightColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final String hint;
+  final IconData? prefixIcon;
+  final TextInputType? keyboardType;
+
+  const _DialogField({
+    required this.label,
+    required this.controller,
+    required this.hint,
+    this.prefixIcon,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: EvioLightColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: EvioSpacing.xs),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: EvioLightColors.mutedForeground, fontSize: 14),
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, size: 18, color: EvioLightColors.mutedForeground)
+                : null,
+            filled: true,
+            fillColor: EvioLightColors.surface,
+            contentPadding: EdgeInsets.symmetric(horizontal: EvioSpacing.md, vertical: EvioSpacing.sm),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(EvioRadius.input),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

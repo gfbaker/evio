@@ -9,6 +9,14 @@ class UserRepository {
   UserRepository([SupabaseClient? client])
     : _client = client ?? Supabase.instance.client;
 
+  /// Obtener ID del usuario actual (db user id, no auth id)
+  String? getCurrentUserId() {
+    // Esto debe ejecutarse síncrono para evitar race conditions
+    // Retorna null si no hay usuario autenticado
+    // En un escenario real, esto debería estar cacheado en el provider
+    return null; // TODO: Implementar cache local
+  }
+
   /// Obtener usuario actual por auth ID
   Future<User?> getCurrentUser() async {
     final authUser = _client.auth.currentUser;
@@ -24,6 +32,12 @@ class UserRepository {
     return User.fromJson(response);
   }
 
+  /// Obtener ID del usuario actual de manera asíncrona
+  Future<String?> getCurrentUserIdAsync() async {
+    final user = await getCurrentUser();
+    return user?.id;
+  }
+
   /// Obtener usuario por ID
   Future<User?> getUserById(String id) async {
     final response = await _client
@@ -36,15 +50,17 @@ class UserRepository {
     return User.fromJson(response);
   }
 
-  /// Buscar usuarios por email
+  /// Buscar usuarios por nombre o email
   Future<List<User>> searchUsers(String query) async {
     if (query.trim().isEmpty) return [];
 
+    // ✅ Buscar por first_name, last_name o email
+    // NOTA: full_name NO existe en la DB, son first_name + last_name
     final response = await _client
         .from('users')
         .select()
-        .ilike('email', '%$query%')
-        .limit(10);
+        .or('first_name.ilike.%$query%,last_name.ilike.%$query%,email.ilike.%$query%')
+        .limit(20);
 
     return (response as List).map((json) => User.fromJson(json)).toList();
   }
@@ -83,8 +99,8 @@ class UserRepository {
     final extension = filePath.split('.').last.toLowerCase();
     final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$extension';
     
-    // Subir a bucket 'avatars'
-    final uploadPath = 'avatars/$fileName';
+    // Subir a bucket 'avatars' (path es solo el filename, el bucket ya se llama 'avatars')
+    final uploadPath = fileName;
     await _client.storage.from('avatars').uploadBinary(
       uploadPath,
       Uint8List.fromList(fileBytes), // Convertir a Uint8List

@@ -17,28 +17,6 @@ class FormHeader extends StatelessWidget {
     super.key,
   });
 
-  String _getStatusLabel(EventStatus status) {
-    switch (status) {
-      case EventStatus.draft:
-        return 'Borrador';
-      case EventStatus.upcoming:
-        return 'Publicado';
-      case EventStatus.cancelled:
-        return 'Cancelado';
-    }
-  }
-
-  Color _getStatusColor(EventStatus status) {
-    switch (status) {
-      case EventStatus.draft:
-        return Colors.orange.shade600;
-      case EventStatus.upcoming:
-        return Colors.green.shade600;
-      case EventStatus.cancelled:
-        return Colors.red.shade600;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -46,85 +24,57 @@ class FormHeader extends StatelessWidget {
         horizontal: EvioSpacing.xl,
         vertical: EvioSpacing.md,
       ),
-      decoration: BoxDecoration(
-        color: EvioLightColors.background,
-        border: Border(bottom: BorderSide(color: EvioLightColors.border)),
-      ),
+      color: EvioLightColors.surface,
       child: Row(
         children: [
-          Container(
-            padding: EdgeInsets.all(EvioSpacing.xs),
-            decoration: BoxDecoration(
-              color: EvioLightColors.surface,
-              borderRadius: BorderRadius.circular(EvioRadius.button),
-              border: Border.all(color: EvioLightColors.border),
-            ),
-            child: Icon(
-              Icons.auto_awesome,
-              size: EvioSpacing.iconM,
-              color: EvioLightColors.primary,
-            ),
-          ),
-          SizedBox(width: EvioSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      isEdit ? 'Editar Evento' : 'Crear Nuevo Evento',
-                      style: EvioTypography.h2,
-                    ),
-                    SizedBox(width: EvioSpacing.sm),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: EvioSpacing.xs,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(status).withValues(alpha: 0.1),
-                        border: Border.all(
-                          color: _getStatusColor(status),
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _getStatusLabel(status),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _getStatusColor(status),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
                 Text(
-                  'Configura todos los detalles de tu próximo evento',
+                  isEdit ? 'Editar Evento' : 'Crear Nuevo Evento',
                   style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: EvioLightColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: EvioSpacing.xxs),
+                Text(
+                  isEdit 
+                      ? 'Modificá los datos de tu evento'
+                      : 'Completá los datos para crear un nuevo evento',
+                  style: TextStyle(
+                    fontSize: 14,
                     color: EvioLightColors.mutedForeground,
-                    fontSize: 13,
                   ),
                 ),
               ],
             ),
           ),
-          OutlinedButton(
+          
+          // Botón Cancelar
+          OutlinedButton.icon(
             onPressed: onCancel,
+            icon: Icon(Icons.arrow_back, size: 18),
+            label: Text('Cancelar'),
             style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: EvioLightColors.card,
               side: BorderSide(color: EvioLightColors.border),
-              foregroundColor: EvioLightColors.foreground,
+              foregroundColor: EvioLightColors.textPrimary,
+              padding: EdgeInsets.symmetric(
+                horizontal: EvioSpacing.lg,
+                vertical: EvioSpacing.sm,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(EvioRadius.button),
               ),
             ),
-            child: Text('Cancelar'),
           ),
           
           SizedBox(width: EvioSpacing.sm),
+          
+          // Botón Crear/Guardar Evento (amarillo)
           FilledButton.icon(
             onPressed: isLoading ? null : onSave,
             icon: isLoading
@@ -133,14 +83,18 @@ class FormHeader extends StatelessWidget {
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: EvioLightColors.accentForeground,
                     ),
                   )
-                : Icon(Icons.save, size: 18),
-            label: Text('Guardar Evento'),
+                : Icon(Icons.save_outlined, size: 18),
+            label: Text(isEdit ? 'Guardar Evento' : 'Crear Evento'),
             style: FilledButton.styleFrom(
-              backgroundColor: EvioLightColors.primary,
-              foregroundColor: EvioLightColors.primaryForeground,
+              backgroundColor: EvioLightColors.accent,
+              foregroundColor: EvioLightColors.accentForeground,
+              padding: EdgeInsets.symmetric(
+                horizontal: EvioSpacing.lg,
+                vertical: EvioSpacing.sm,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(EvioRadius.button),
               ),

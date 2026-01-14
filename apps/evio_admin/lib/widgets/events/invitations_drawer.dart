@@ -4,14 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../widgets/common/floating_snackbar.dart';
 
-/// Drawer lateral para gestionar invitaciones de un evento
+/// Drawer lateral para gestionar invitaciones de un evento.
+/// Diseño actualizado con estilo amarillo accent.
 class InvitationsDrawer extends ConsumerStatefulWidget {
   final String eventId;
 
-  const InvitationsDrawer({
-    required this.eventId,
-    super.key,
-  });
+  const InvitationsDrawer({required this.eventId, super.key});
 
   @override
   ConsumerState<InvitationsDrawer> createState() => _InvitationsDrawerState();
@@ -28,9 +26,8 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
   bool _isSending = false;
 
   final _invitationRepo = TicketInvitationRepository();
-  
-  // ✅ Cachear futures para evitar rebuilds
-  late final Future<Map<String, int>> _statsFuture;
+
+  late Future<Map<String, int>> _statsFuture;
   late Future<List<TicketInvitation>> _invitationsFuture;
 
   @override
@@ -48,6 +45,14 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
     super.dispose();
   }
 
+  void _refreshData() {
+    if (_isDisposed) return;
+    setState(() {
+      _statsFuture = _invitationRepo.getInvitationStats(widget.eventId);
+      _invitationsFuture = _invitationRepo.getInvitations(widget.eventId);
+    });
+  }
+
   void _validate() {
     if (_isDisposed) return;
 
@@ -55,7 +60,6 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
       _emailError = null;
       _quantityError = null;
 
-      // Validar email
       final email = _emailController.text.trim();
       if (email.isEmpty) {
         _emailError = 'El email es obligatorio';
@@ -63,7 +67,6 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
         _emailError = 'Email inválido';
       }
 
-      // Validar cantidad
       if (_quantityController.text.isEmpty) {
         _quantityError = 'La cantidad es obligatoria';
       } else {
@@ -78,7 +81,6 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
       }
     });
 
-    // Si no hay errores, enviar
     if (_emailError == null && _quantityError == null) {
       _sendInvitation();
     }
@@ -103,21 +105,18 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
         recipientEmail: email,
         quantity: quantity,
         isTransferable: _isTransferable,
-        message: null, // Sin mensaje
+        message: null,
       );
 
       if (_isDisposed || !mounted) return;
 
-      // Limpiar form
       _emailController.clear();
       _quantityController.text = '1';
       setState(() {
         _isTransferable = false;
         _isSending = false;
-        // ✅ Refrescar futures
-        _statsFuture = _invitationRepo.getInvitationStats(widget.eventId);
-        _invitationsFuture = _invitationRepo.getInvitations(widget.eventId);
       });
+      _refreshData();
 
       FloatingSnackBar.show(
         context,
@@ -145,11 +144,7 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
 
       if (_isDisposed || !mounted) return;
 
-      setState(() {
-        // ✅ Refrescar futures
-        _statsFuture = _invitationRepo.getInvitationStats(widget.eventId);
-        _invitationsFuture = _invitationRepo.getInvitations(widget.eventId);
-      });
+      _refreshData();
 
       FloatingSnackBar.show(
         context,
@@ -170,53 +165,12 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width: 600,
+      width: 500,
+      backgroundColor: EvioLightColors.surface,
       child: Column(
         children: [
           // Header
-          Container(
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + EvioSpacing.lg,
-              left: EvioSpacing.lg,
-              right: EvioSpacing.lg,
-              bottom: EvioSpacing.lg,
-            ),
-            decoration: BoxDecoration(
-              color: EvioLightColors.background,
-              border: Border(
-                bottom: BorderSide(color: EvioLightColors.border),
-              ),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                SizedBox(width: EvioSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Enviar Invitaciones',
-                        style: EvioTypography.h3,
-                      ),
-                      SizedBox(height: EvioSpacing.xxs),
-                      Text(
-                        'Tickets gratuitos para invitados',
-                        style: EvioTypography.bodySmall.copyWith(
-                          color: EvioLightColors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildHeader(),
 
           // Content
           Expanded(
@@ -225,43 +179,10 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Stats Card
                   _buildStatsCard(),
                   SizedBox(height: EvioSpacing.xl),
-
-                  // Divider
-                  Divider(color: EvioLightColors.border),
+                  _buildNewInvitationForm(),
                   SizedBox(height: EvioSpacing.xl),
-
-                  // Nueva Invitación Form
-                  Text('Nueva Invitación', style: EvioTypography.h4),
-                  SizedBox(height: EvioSpacing.md),
-
-                  // Email
-                  Text('Email del invitado *', style: EvioTypography.labelMedium),
-                  SizedBox(height: EvioSpacing.xs),
-                  _buildEmailField(),
-                  SizedBox(height: EvioSpacing.lg),
-
-                  // Cantidad
-                  Text('Cantidad de tickets *', style: EvioTypography.labelMedium),
-                  SizedBox(height: EvioSpacing.xs),
-                  _buildQuantityField(),
-                  SizedBox(height: EvioSpacing.lg),
-
-                  // Transferible checkbox
-                  _buildTransferableCheckbox(),
-                  SizedBox(height: EvioSpacing.xl),
-
-                  // Botón Enviar
-                  _buildSendButton(),
-                  SizedBox(height: EvioSpacing.xxl),
-
-                  // Divider
-                  Divider(color: EvioLightColors.border),
-                  SizedBox(height: EvioSpacing.xl),
-
-                  // Lista de invitaciones
                   _buildInvitationsList(),
                 ],
               ),
@@ -272,164 +193,56 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
     );
   }
 
-  Widget _buildEmailField() {
-    return TextField(
-      controller: _emailController,
-      decoration: InputDecoration(
-        hintText: 'nombre@ejemplo.com',
-        errorText: _emailError,
-        filled: true,
-        fillColor: EvioLightColors.background,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(EvioRadius.input),
-          borderSide: BorderSide(
-            color: _emailError != null ? Colors.red : EvioLightColors.border,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(EvioRadius.input),
-          borderSide: BorderSide(
-            color: _emailError != null ? Colors.red : EvioLightColors.border,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(EvioRadius.input),
-          borderSide: BorderSide(
-            color: _emailError != null ? Colors.red : EvioLightColors.primary,
-            width: 2,
-          ),
-        ),
-        contentPadding: EdgeInsets.all(EvioSpacing.md),
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + EvioSpacing.lg,
+        left: EvioSpacing.lg,
+        right: EvioSpacing.lg,
+        bottom: EvioSpacing.lg,
       ),
-      keyboardType: TextInputType.emailAddress,
-      autofocus: true,
-      onChanged: (_) {
-        if (_emailError != null && !_isDisposed) {
-          setState(() => _emailError = null);
-        }
-      },
-    );
-  }
-
-  Widget _buildQuantityField() {
-    return TextField(
-      controller: _quantityController,
-      decoration: InputDecoration(
-        hintText: '1',
-        errorText: _quantityError,
-        filled: true,
-        fillColor: EvioLightColors.background,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(EvioRadius.input),
-          borderSide: BorderSide(
-            color: _quantityError != null ? Colors.red : EvioLightColors.border,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(EvioRadius.input),
-          borderSide: BorderSide(
-            color: _quantityError != null ? Colors.red : EvioLightColors.border,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(EvioRadius.input),
-          borderSide: BorderSide(
-            color: _quantityError != null ? Colors.red : EvioLightColors.primary,
-            width: 2,
-          ),
-        ),
-        contentPadding: EdgeInsets.all(EvioSpacing.md),
-      ),
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: (_) {
-        if (_quantityError != null && !_isDisposed) {
-          setState(() => _quantityError = null);
-        }
-      },
-    );
-  }
-
-  Widget _buildTransferableCheckbox() {
-    return InkWell(
-      onTap: () {
-        if (!_isDisposed) {
-          setState(() => _isTransferable = !_isTransferable);
-        }
-      },
-      borderRadius: BorderRadius.circular(EvioRadius.card),
-      child: Container(
-        padding: EdgeInsets.all(EvioSpacing.md),
-        decoration: BoxDecoration(
-          color: _isTransferable
-              ? EvioLightColors.primary.withValues(alpha: 0.1)
-              : EvioLightColors.background,
-          borderRadius: BorderRadius.circular(EvioRadius.card),
-          border: Border.all(
-            color: _isTransferable
-                ? EvioLightColors.primary
-                : EvioLightColors.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Checkbox(
-              value: _isTransferable,
-              onChanged: (value) {
-                if (!_isDisposed) {
-                  setState(() => _isTransferable = value ?? false);
-                }
-              },
-              activeColor: EvioLightColors.primary,
+      color: EvioLightColors.surface,
+      child: Row(
+        children: [
+          // Botón cerrar
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: EvioLightColors.card,
+              borderRadius: BorderRadius.circular(EvioRadius.button),
             ),
-            SizedBox(width: EvioSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Ticket Transferible',
-                    style: EvioTypography.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: EvioSpacing.xxs),
-                  Text(
-                    'El invitado podrá reenviar este ticket a otra persona (1 vez)',
-                    style: EvioTypography.bodySmall.copyWith(
-                      color: EvioLightColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
+            child: IconButton(
+              icon: Icon(Icons.close, size: 20),
+              onPressed: () => Navigator.pop(context),
+              padding: EdgeInsets.zero,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSendButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isSending ? null : _validate,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: EvioLightColors.primary,
-          foregroundColor: Colors.white,
-          padding: EdgeInsets.symmetric(vertical: EvioSpacing.md),
-          disabledBackgroundColor: EvioLightColors.muted,
-        ),
-        child: _isSending
-            ? SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+          SizedBox(width: EvioSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Enviar Invitaciones',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: EvioLightColors.textPrimary,
+                  ),
                 ),
-              )
-            : const Text('Enviar Invitación'),
+                SizedBox(height: 2),
+                Text(
+                  'Tickets gratuitos para invitados',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: EvioLightColors.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -438,209 +251,270 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
     return FutureBuilder<Map<String, int>>(
       future: _statsFuture,
       builder: (context, snapshot) {
-        return AnimatedOpacity(
-          duration: const Duration(milliseconds: 300),
-          opacity: snapshot.connectionState == ConnectionState.waiting ? 0.5 : 1.0,
-          child: Container(
-            padding: EdgeInsets.all(EvioSpacing.lg),
-            decoration: BoxDecoration(
-              color: EvioLightColors.card,
-              borderRadius: BorderRadius.circular(EvioRadius.card),
-              border: Border.all(color: EvioLightColors.border),
-            ),
-            child: snapshot.connectionState == ConnectionState.waiting
-                ? _buildStatsSkeleton()
-                : _buildStatsContent(snapshot.data ?? {}),
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final stats = snapshot.data ?? {};
+
+        return Container(
+          padding: EdgeInsets.all(EvioSpacing.lg),
+          decoration: BoxDecoration(
+            color: EvioLightColors.card,
+            borderRadius: BorderRadius.circular(EvioRadius.card),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: EvioLightColors.accent,
+                      borderRadius: BorderRadius.circular(EvioRadius.button),
+                    ),
+                    child: Icon(
+                      Icons.analytics_outlined,
+                      size: 20,
+                      color: EvioLightColors.accentForeground,
+                    ),
+                  ),
+                  SizedBox(width: EvioSpacing.sm),
+                  Text(
+                    'Estadísticas',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: EvioLightColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: EvioSpacing.lg),
+
+              // Stats grid
+              if (isLoading)
+                SizedBox(
+                  height: 60,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: EvioLightColors.accent,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    _StatBox(
+                      label: 'Enviadas',
+                      value: '${stats['total_sent'] ?? 0}',
+                      color: EvioLightColors.accent,
+                    ),
+                    SizedBox(width: EvioSpacing.sm),
+                    _StatBox(
+                      label: 'Asignadas',
+                      value: '${stats['assigned'] ?? 0}',
+                      color: EvioLightColors.success,
+                    ),
+                    SizedBox(width: EvioSpacing.sm),
+                    _StatBox(
+                      label: 'Pendientes',
+                      value: '${stats['pending'] ?? 0}',
+                      color: Colors.orange,
+                    ),
+                  ],
+                ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildStatsSkeleton() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: EvioLightColors.muted,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            SizedBox(width: EvioSpacing.sm),
-            Container(
-              width: 80,
-              height: 14,
-              decoration: BoxDecoration(
-                color: EvioLightColors.muted,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: EvioSpacing.md),
-        Row(
-          children: [
-            Expanded(child: _buildSkeletonStatItem()),
-            Expanded(child: _buildSkeletonStatItem()),
-          ],
-        ),
-        SizedBox(height: EvioSpacing.sm),
-        Row(
-          children: [
-            Expanded(child: _buildSkeletonStatItem()),
-            Expanded(child: _buildSkeletonStatItem()),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSkeletonStatItem() {
-    return Column(
-      children: [
-        Container(
-          width: 40,
-          height: 24,
-          decoration: BoxDecoration(
-            color: EvioLightColors.muted,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        SizedBox(height: EvioSpacing.xxs),
-        Container(
-          width: 60,
-          height: 12,
-          decoration: BoxDecoration(
-            color: EvioLightColors.muted,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatsContent(Map<String, int> stats) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Icon(Icons.email_outlined, color: EvioLightColors.primary, size: 20),
-            SizedBox(width: EvioSpacing.sm),
-            Text(
-              'Estadísticas',
-              style: EvioTypography.labelLarge.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-        SizedBox(height: EvioSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: _StatItem(
-                label: 'Total Enviadas',
-                value: stats['total_sent'].toString(),
-                color: EvioLightColors.primary,
-              ),
-            ),
-            Expanded(
-              child: _StatItem(
-                label: 'Asignadas',
-                value: stats['assigned'].toString(),
-                color: EvioLightColors.success,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: EvioSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: _StatItem(
-                label: 'Pendientes',
-                value: stats['pending'].toString(),
-                color: Colors.orange,
-              ),
-            ),
-            Expanded(
-              child: _StatItem(
-                label: 'Canceladas',
-                value: stats['cancelled'].toString(),
-                color: EvioLightColors.mutedForeground,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInvitationsList() {
-    return FutureBuilder<List<TicketInvitation>>(
-      future: _invitationsFuture,
-      builder: (context, snapshot) {
-        return AnimatedOpacity(
-          duration: const Duration(milliseconds: 300),
-          opacity: snapshot.connectionState == ConnectionState.waiting ? 0.5 : 1.0,
-          child: Container(
-            constraints: BoxConstraints(minHeight: 200),
-            child: snapshot.connectionState == ConnectionState.waiting
-                ? _buildInvitationsListSkeleton()
-                : _buildInvitationsListContent(snapshot),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInvitationsListSkeleton() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 140,
-          height: 20,
-          decoration: BoxDecoration(
-            color: EvioLightColors.muted,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        SizedBox(height: EvioSpacing.md),
-        ...List.generate(2, (index) => _buildInvitationItemSkeleton()),
-      ],
-    );
-  }
-
-  Widget _buildInvitationItemSkeleton() {
+  Widget _buildNewInvitationForm() {
     return Container(
-      margin: EdgeInsets.only(bottom: EvioSpacing.sm),
-      padding: EdgeInsets.all(EvioSpacing.md),
+      padding: EdgeInsets.all(EvioSpacing.lg),
       decoration: BoxDecoration(
-        color: EvioLightColors.background,
+        color: EvioLightColors.card,
         borderRadius: BorderRadius.circular(EvioRadius.card),
-        border: Border.all(color: EvioLightColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 180,
-            height: 16,
-            decoration: BoxDecoration(
-              color: EvioLightColors.muted,
-              borderRadius: BorderRadius.circular(4),
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: EvioLightColors.accent,
+                  borderRadius: BorderRadius.circular(EvioRadius.button),
+                ),
+                child: Icon(
+                  Icons.send_outlined,
+                  size: 20,
+                  color: EvioLightColors.accentForeground,
+                ),
+              ),
+              SizedBox(width: EvioSpacing.sm),
+              Text(
+                'Nueva Invitación',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: EvioLightColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: EvioSpacing.lg),
+
+          // Email field
+          Text(
+            'Email del invitado *',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: EvioLightColors.textPrimary,
             ),
           ),
           SizedBox(height: EvioSpacing.xs),
-          Container(
-            width: 120,
-            height: 14,
-            decoration: BoxDecoration(
-              color: EvioLightColors.muted,
-              borderRadius: BorderRadius.circular(4),
+          TextField(
+            controller: _emailController,
+            decoration: InputDecoration(
+              hintText: 'nombre@ejemplo.com',
+              errorText: _emailError,
+              filled: true,
+              fillColor: EvioLightColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(EvioRadius.input),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: EdgeInsets.all(EvioSpacing.md),
+            ),
+            keyboardType: TextInputType.emailAddress,
+            onChanged: (_) {
+              if (_emailError != null && !_isDisposed) {
+                setState(() => _emailError = null);
+              }
+            },
+          ),
+          SizedBox(height: EvioSpacing.md),
+
+          // Quantity field
+          Text(
+            'Cantidad de tickets *',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: EvioLightColors.textPrimary,
+            ),
+          ),
+          SizedBox(height: EvioSpacing.xs),
+          TextField(
+            controller: _quantityController,
+            decoration: InputDecoration(
+              hintText: '1',
+              errorText: _quantityError,
+              filled: true,
+              fillColor: EvioLightColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(EvioRadius.input),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: EdgeInsets.all(EvioSpacing.md),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) {
+              if (_quantityError != null && !_isDisposed) {
+                setState(() => _quantityError = null);
+              }
+            },
+          ),
+          SizedBox(height: EvioSpacing.md),
+
+          // Transferable toggle
+          InkWell(
+            onTap: () {
+              if (!_isDisposed) {
+                setState(() => _isTransferable = !_isTransferable);
+              }
+            },
+            borderRadius: BorderRadius.circular(EvioRadius.button),
+            child: Container(
+              padding: EdgeInsets.all(EvioSpacing.md),
+              decoration: BoxDecoration(
+                color: _isTransferable
+                    ? EvioLightColors.accent.withValues(alpha: 0.1)
+                    : EvioLightColors.surface,
+                borderRadius: BorderRadius.circular(EvioRadius.button),
+              ),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: _isTransferable,
+                    onChanged: (v) {
+                      if (!_isDisposed) {
+                        setState(() => _isTransferable = v ?? false);
+                      }
+                    },
+                    activeColor: EvioLightColors.accent,
+                  ),
+                  SizedBox(width: EvioSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ticket Transferible',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: EvioLightColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          'El invitado podrá reenviar este ticket',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: EvioLightColors.mutedForeground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: EvioSpacing.lg),
+
+          // Send button
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _isSending ? null : _validate,
+              icon: _isSending
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: EvioLightColors.accentForeground,
+                      ),
+                    )
+                  : Icon(Icons.send, size: 18),
+              label: Text('Enviar Invitación'),
+              style: FilledButton.styleFrom(
+                backgroundColor: EvioLightColors.accent,
+                foregroundColor: EvioLightColors.accentForeground,
+                padding: EdgeInsets.symmetric(vertical: EvioSpacing.md),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(EvioRadius.button),
+                ),
+              ),
             ),
           ),
         ],
@@ -648,53 +522,95 @@ class _InvitationsDrawerState extends ConsumerState<InvitationsDrawer> {
     );
   }
 
-  Widget _buildInvitationsListContent(
-      AsyncSnapshot<List<TicketInvitation>> snapshot) {
-    if (snapshot.hasError) {
-      return Center(
-        child: Text(
-          'Error al cargar invitaciones',
-          style: TextStyle(color: EvioLightColors.destructive),
-        ),
-      );
-    }
+  Widget _buildInvitationsList() {
+    return FutureBuilder<List<TicketInvitation>>(
+      future: _invitationsFuture,
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final invitations = snapshot.data ?? [];
 
-    final invitations = snapshot.data ?? [];
-
-    if (invitations.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(EvioSpacing.xl),
-          child: Text(
-            'No hay invitaciones enviadas',
-            style: TextStyle(color: EvioLightColors.mutedForeground),
+        return Container(
+          padding: EdgeInsets.all(EvioSpacing.lg),
+          decoration: BoxDecoration(
+            color: EvioLightColors.card,
+            borderRadius: BorderRadius.circular(EvioRadius.card),
           ),
-        ),
-      );
-    }
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: EvioLightColors.accent,
+                      borderRadius: BorderRadius.circular(EvioRadius.button),
+                    ),
+                    child: Icon(
+                      Icons.list_alt,
+                      size: 20,
+                      color: EvioLightColors.accentForeground,
+                    ),
+                  ),
+                  SizedBox(width: EvioSpacing.sm),
+                  Text(
+                    'Invitaciones Enviadas',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: EvioLightColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: EvioSpacing.lg),
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Invitaciones Enviadas', style: EvioTypography.h4),
-        SizedBox(height: EvioSpacing.md),
-        ...invitations.map((invitation) {
-          return _InvitationItem(
-            invitation: invitation,
-            onCancel: () => _cancelInvitation(invitation.id),
-          );
-        }),
-      ],
+              // Content
+              if (isLoading)
+                SizedBox(
+                  height: 100,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: EvioLightColors.accent,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                )
+              else if (invitations.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(EvioSpacing.lg),
+                    child: Text(
+                      'No hay invitaciones enviadas',
+                      style: TextStyle(color: EvioLightColors.mutedForeground),
+                    ),
+                  ),
+                )
+              else
+                ...invitations.map((inv) => _InvitationItem(
+                      invitation: inv,
+                      onCancel: () => _cancelInvitation(inv.id),
+                    )),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-class _StatItem extends StatelessWidget {
+// -----------------------------------------------------------------------------
+// WIDGETS AUXILIARES
+// -----------------------------------------------------------------------------
+
+class _StatBox extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
 
-  const _StatItem({
+  const _StatBox({
     required this.label,
     required this.value,
     required this.color,
@@ -702,25 +618,34 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(EvioSpacing.md),
+        decoration: BoxDecoration(
+          color: EvioLightColors.surface,
+          borderRadius: BorderRadius.circular(EvioRadius.button),
         ),
-        SizedBox(height: EvioSpacing.xxs),
-        Text(
-          label,
-          style: EvioTypography.bodySmall.copyWith(
-            color: EvioLightColors.mutedForeground,
-          ),
-          textAlign: TextAlign.center,
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: EvioLightColors.mutedForeground,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -761,32 +686,30 @@ class _InvitationItem extends StatelessWidget {
       margin: EdgeInsets.only(bottom: EvioSpacing.sm),
       padding: EdgeInsets.all(EvioSpacing.md),
       decoration: BoxDecoration(
-        color: EvioLightColors.background,
-        borderRadius: BorderRadius.circular(EvioRadius.card),
-        border: Border.all(color: EvioLightColors.border),
+        color: EvioLightColors.surface,
+        borderRadius: BorderRadius.circular(EvioRadius.button),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.email, size: 16, color: EvioLightColors.primary),
+              Icon(Icons.email, size: 16, color: EvioLightColors.accent),
               SizedBox(width: EvioSpacing.xs),
               Expanded(
                 child: Text(
                   invitation.recipientEmail,
-                  style: EvioTypography.bodyMedium.copyWith(
+                  style: TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    color: EvioLightColors.textPrimary,
                   ),
                 ),
               ),
               Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: EvioSpacing.xs,
-                  vertical: 2,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Row(
@@ -797,7 +720,7 @@ class _InvitationItem extends StatelessWidget {
                     Text(
                       statusLabel,
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         color: statusColor,
                         fontWeight: FontWeight.w600,
                       ),
@@ -812,35 +735,25 @@ class _InvitationItem extends StatelessWidget {
             children: [
               Text(
                 '${invitation.quantity} ticket${invitation.quantity > 1 ? 's' : ''}',
-                style: EvioTypography.bodySmall.copyWith(
+                style: TextStyle(
+                  fontSize: 12,
                   color: EvioLightColors.mutedForeground,
                 ),
               ),
               if (invitation.isTransferable) ...[
-                SizedBox(width: EvioSpacing.xs),
-                Text('•', style: TextStyle(color: EvioLightColors.mutedForeground)),
-                SizedBox(width: EvioSpacing.xs),
+                SizedBox(width: EvioSpacing.sm),
                 Icon(Icons.swap_horiz, size: 14, color: EvioLightColors.mutedForeground),
                 SizedBox(width: 4),
                 Text(
                   'Transferible',
-                  style: EvioTypography.bodySmall.copyWith(
+                  style: TextStyle(
+                    fontSize: 12,
                     color: EvioLightColors.mutedForeground,
                   ),
                 ),
               ],
             ],
           ),
-          if (invitation.message != null) ...[
-            SizedBox(height: EvioSpacing.xs),
-            Text(
-              invitation.message!,
-              style: EvioTypography.bodySmall.copyWith(
-                color: EvioLightColors.mutedForeground,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
           if (invitation.isPending) ...[
             SizedBox(height: EvioSpacing.sm),
             SizedBox(
@@ -851,8 +764,11 @@ class _InvitationItem extends StatelessWidget {
                   foregroundColor: EvioLightColors.destructive,
                   side: BorderSide(color: EvioLightColors.destructive),
                   padding: EdgeInsets.symmetric(vertical: EvioSpacing.xs),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(EvioRadius.button),
+                  ),
                 ),
-                child: const Text('Cancelar Invitación'),
+                child: Text('Cancelar Invitación'),
               ),
             ),
           ],

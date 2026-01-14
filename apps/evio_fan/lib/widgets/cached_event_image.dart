@@ -6,21 +6,21 @@ import 'package:shimmer/shimmer.dart';
 /// Widget reutilizable para imágenes de eventos con caché automático
 class CachedEventImage extends StatelessWidget {
   final String? imageUrl;
-  final String? thumbnailUrl; // Thumbnail pequeño para listas
-  final String? fullImageUrl; // ✅ AGREGADO: Fallback para eventos viejos
+  final String? thumbnailUrl;
+  final String? fullImageUrl;
   final BoxFit fit;
   final double? width;
   final double? height;
   final BorderRadius? borderRadius;
   final int? memCacheWidth;
   final int? memCacheHeight;
-  final bool useThumbnail; // Si true, usa thumbnailUrl cuando esté disponible
+  final bool useThumbnail;
 
   const CachedEventImage({
     super.key,
     required this.imageUrl,
     this.thumbnailUrl,
-    this.fullImageUrl, // ✅ AGREGADO
+    this.fullImageUrl,
     this.fit = BoxFit.cover,
     this.width,
     this.height,
@@ -32,25 +32,12 @@ class CachedEventImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Decidir qué URL usar con cascada de fallbacks
+    // Seleccionar URL con fallback en cascada
     final String? urlToUse = useThumbnail && thumbnailUrl != null
         ? thumbnailUrl
-        : (imageUrl ?? thumbnailUrl ?? fullImageUrl); // Cascada: imageUrl -> thumbnailUrl -> fullImageUrl
-    
-    // 🔍 DEBUG: Logs para diagnosticar
-    if (kDebugMode) {
-      debugPrint('🖼️ [CachedEventImage] Debug:');
-      debugPrint('   useThumbnail: $useThumbnail');
-      debugPrint('   thumbnailUrl: $thumbnailUrl');
-      debugPrint('   imageUrl: $imageUrl');
-      debugPrint('   fullImageUrl: $fullImageUrl');
-      debugPrint('   ➡️ urlToUse: $urlToUse');
-    }
+        : (imageUrl ?? thumbnailUrl ?? fullImageUrl);
 
     if (urlToUse == null || urlToUse.isEmpty) {
-      if (kDebugMode) {
-        debugPrint('⚠️ [CachedEventImage] NO URL - mostrando placeholder');
-      }
       return _buildPlaceholder();
     }
 
@@ -91,7 +78,10 @@ class CachedEventImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: const Color(0xFF252525),
+      decoration: BoxDecoration(
+        color: const Color(0xFF252525),
+        borderRadius: borderRadius,
+      ),
       child: Center(
         child: Icon(
           Icons.music_note_rounded,

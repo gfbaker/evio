@@ -14,6 +14,7 @@ void main() async {
 
   await SupabaseService.initialize();
   await initializeDateFormatting('es', null);
+  
   runApp(const ProviderScope(child: EvioFanApp()));
 }
 

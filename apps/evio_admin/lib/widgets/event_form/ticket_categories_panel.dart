@@ -23,7 +23,6 @@ class TicketCategoriesPanel extends ConsumerWidget {
       decoration: BoxDecoration(
         color: EvioLightColors.card,
         borderRadius: BorderRadius.circular(EvioRadius.card),
-        border: Border.all(color: EvioLightColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,29 +31,48 @@ class TicketCategoriesPanel extends ConsumerWidget {
           Padding(
             padding: EdgeInsets.all(EvioSpacing.lg),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Categorías de Tickets',
-                      style: EvioTypography.h3,
-                    ),
-                    SizedBox(height: EvioSpacing.xxs),
-                    Text(
-                      'Configura las categorías y sus precios escalonados',
-                      style: EvioTypography.bodySmall.copyWith(
-                        color: EvioLightColors.mutedForeground,
+                // Icono con fondo amarillo
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: EvioLightColors.accent,
+                    borderRadius: BorderRadius.circular(EvioRadius.button),
+                  ),
+                  child: Icon(
+                    Icons.confirmation_number_outlined,
+                    size: 20,
+                    color: EvioLightColors.accentForeground,
+                  ),
+                ),
+                SizedBox(width: EvioSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Categorías de Tickets',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: EvioLightColors.textPrimary,
+                        ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 2),
+                      Text(
+                        'Configura las categorías y sus precios escalonados',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: EvioLightColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-
-          Divider(height: 1, color: EvioLightColors.border),
 
           // Categories List or Empty State
           if (categories.isEmpty)
@@ -67,11 +85,14 @@ class TicketCategoriesPanel extends ConsumerWidget {
               padding: EdgeInsets.all(EvioSpacing.lg),
               child: OutlinedButton.icon(
                 onPressed: () => _showAddCategoryDialog(context, notifier),
-                icon: Icon(Icons.add, size: 20),
+                icon: Icon(Icons.add, size: 18),
                 label: Text('Agregar categoría'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: EvioLightColors.primary,
-                  side: BorderSide(color: EvioLightColors.border),
+                  foregroundColor: EvioLightColors.accent,
+                  side: BorderSide(color: EvioLightColors.accent),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(EvioRadius.button),
+                  ),
                 ),
               ),
             ),
@@ -87,34 +108,50 @@ class TicketCategoriesPanel extends ConsumerWidget {
       child: Center(
         child: Column(
           children: [
-            Icon(
-              Icons.confirmation_number_outlined,
-              size: 64,
-              color: EvioLightColors.mutedForeground,
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: EvioLightColors.accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                Icons.confirmation_number_outlined,
+                size: 32,
+                color: EvioLightColors.accent,
+              ),
             ),
             SizedBox(height: EvioSpacing.md),
             Text(
               'No hay categorías de tickets',
-              style: EvioTypography.h4,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: EvioLightColors.textPrimary,
+              ),
             ),
             SizedBox(height: EvioSpacing.xs),
             Text(
               'Crea categorías como General, VIP, etc.',
-              style: EvioTypography.bodySmall.copyWith(
+              style: TextStyle(
+                fontSize: 14,
                 color: EvioLightColors.mutedForeground,
               ),
             ),
             SizedBox(height: EvioSpacing.lg),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: () => _showAddCategoryDialog(context, notifier),
-              icon: Icon(Icons.add),
+              icon: Icon(Icons.add, size: 18),
               label: Text('Crear primera categoría'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: EvioLightColors.primary,
-                foregroundColor: Colors.white,  // ✅ Texto blanco para contraste
+              style: FilledButton.styleFrom(
+                backgroundColor: EvioLightColors.accent,
+                foregroundColor: EvioLightColors.accentForeground,
                 padding: EdgeInsets.symmetric(
                   horizontal: EvioSpacing.xl,
                   vertical: EvioSpacing.md,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(EvioRadius.button),
                 ),
               ),
             ),
@@ -462,7 +499,7 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
         vertical: EvioSpacing.xs,
       ),
       decoration: BoxDecoration(
-        border: Border.all(color: EvioLightColors.border),
+        color: EvioLightColors.surface,
         borderRadius: BorderRadius.circular(EvioRadius.card),
       ),
       child: Column(
@@ -582,7 +619,7 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
 
           // Expanded content (tiers)
           if (_isExpanded) ...[
-            Divider(height: 1, color: EvioLightColors.border),
+            SizedBox(height: EvioSpacing.xs),
             _buildTiersList(),
             _buildAddTierButton(),
           ],
@@ -623,9 +660,8 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
     return Container(
       padding: EdgeInsets.all(EvioSpacing.md),
       decoration: BoxDecoration(
-        color: EvioLightColors.background,
+        color: EvioLightColors.card,
         borderRadius: BorderRadius.circular(EvioRadius.button),
-        border: Border.all(color: EvioLightColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,13 +675,14 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
                   vertical: EvioSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
-                  color: EvioLightColors.primary.withValues(alpha: 0.1),
+                  color: EvioLightColors.accent,
                   borderRadius: BorderRadius.circular(EvioRadius.button),
                 ),
                 child: Text(
                   'Tier ${index + 1}',
-                  style: EvioTypography.labelSmall.copyWith(
-                    color: EvioLightColors.primary,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: EvioLightColors.accentForeground,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -694,7 +731,7 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
                     Text(
                       '\$ ${tier.price ~/ 100}',
                       style: EvioTypography.bodyLarge.copyWith(
-                        color: EvioLightColors.primary,
+                        color: EvioLightColors.accent,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -767,8 +804,11 @@ class _CategoryAccordionItemState extends ConsumerState<CategoryAccordionItem> {
         icon: Icon(Icons.add, size: 18),
         label: Text('Agregar tier a ${widget.category.name}'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: EvioLightColors.primary,
-          side: BorderSide(color: EvioLightColors.border),
+          foregroundColor: EvioLightColors.accent,
+          side: BorderSide(color: EvioLightColors.accent),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(EvioRadius.button),
+          ),
         ),
       ),
     );

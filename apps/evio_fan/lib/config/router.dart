@@ -1,6 +1,8 @@
 import 'package:evio_fan/screens/tickets/ticket_detail_screen.dart';
 import 'package:evio_fan/screens/tickets/event_tickets_list_screen.dart';
 import 'package:evio_fan/screens/profile/edit_profile_screen.dart';
+import 'package:evio_fan/screens/search_users/search_users_screen.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../screens/home/home_screen.dart';
@@ -66,13 +68,49 @@ final fanRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Event Detail (sin bottom nav, full screen)
+      // Event Detail (sin bottom nav, full screen con fade transition)
       GoRoute(
         path: '/event/:id',
         name: 'event-detail',
-        builder: (context, state) {
-          final eventId = state.pathParameters['id']!;
-          return EventDetailScreen(eventId: eventId);
+        pageBuilder: (context, state) {
+          final eventId = state.pathParameters['id'];
+          
+          // ✅ Validación de eventId
+          if (eventId == null || eventId.isEmpty) {
+            return MaterialPage(
+              key: state.pageKey,
+              child: Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      SizedBox(height: 16),
+                      Text('ID de evento inválido'),
+                      SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        child: Text('Volver al inicio'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+          
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: EventDetailScreen(eventId: eventId),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              // Fade in simple
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 300),
+          );
         },
       ),
 
@@ -110,6 +148,13 @@ final fanRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile/edit',
         name: 'edit-profile',
         builder: (context, state) => const EditProfileScreen(),
+      ),
+
+      // Search Users (sin bottom nav, full screen)
+      GoRoute(
+        path: '/search-users',
+        name: 'search-users',
+        builder: (context, state) => const SearchUsersScreen(),
       ),
       // Auth routes (sin bottom nav)
       GoRoute(

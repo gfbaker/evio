@@ -15,12 +15,7 @@ class AdminSidebar extends ConsumerWidget {
 
     return Container(
       width: EvioSpacing.sidebarWidth,
-      decoration: BoxDecoration(
-        color: EvioLightColors.sidebar,
-        border: Border(
-          right: BorderSide(color: EvioLightColors.sidebarBorder, width: 1),
-        ),
-      ),
+      color: EvioLightColors.sidebar,
       child: Column(
         children: [
           _buildHeader(),
@@ -104,23 +99,18 @@ class AdminSidebar extends ConsumerWidget {
   Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.all(EvioSpacing.lg),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: EvioLightColors.sidebarBorder, width: 1),
-        ),
-      ),
       child: Row(
         children: [
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: EvioLightColors.primary,
-              borderRadius: BorderRadius.circular(EvioRadius.lg),
+              color: EvioLightColors.accent,
+              shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.music_note,
-              color: EvioLightColors.primaryForeground,
+              color: EvioLightColors.accentForeground,
               size: 20,
             ),
           ),
@@ -190,11 +180,11 @@ class AdminSidebar extends ConsumerWidget {
     required bool isActive,
   }) {
     final backgroundColor = isActive
-        ? EvioLightColors.secondary
+        ? EvioLightColors.accent
         : Colors.transparent;
 
     final foregroundColor = isActive
-        ? EvioLightColors.secondaryForeground
+        ? EvioLightColors.accentForeground
         : EvioLightColors.textPrimary;
 
     return Material(
@@ -203,7 +193,7 @@ class AdminSidebar extends ConsumerWidget {
       child: InkWell(
         onTap: () => context.go(route),
         borderRadius: BorderRadius.circular(EvioRadius.lg),
-        hoverColor: EvioLightColors.sidebarAccent,
+        hoverColor: EvioLightColors.muted,
         child: Container(
           height: 40,
           padding: EdgeInsets.symmetric(
@@ -235,11 +225,6 @@ class AdminSidebar extends ConsumerWidget {
   ) {
     return Container(
       padding: EdgeInsets.all(EvioSpacing.md),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: EvioLightColors.sidebarBorder, width: 1),
-        ),
-      ),
       child: Column(
         children: [
           // User info

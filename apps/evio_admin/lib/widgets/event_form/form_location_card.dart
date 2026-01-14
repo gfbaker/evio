@@ -52,41 +52,34 @@ class FormLocationCard extends ConsumerWidget {
             ],
           ),
           SizedBox(height: EvioSpacing.lg),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'Ubicación (Seleccionar en Mapa) *',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                  color: EvioLightColors.foreground,
-                ),
-              ),
-              SizedBox(height: EvioSpacing.xs),
-              InkWell(
-                onTap: onSelectLocation,
-                child: Container(
-                  height: 48,
-                  padding: EdgeInsets.symmetric(horizontal: EvioSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: EvioLightColors.inputBackground,
-                    borderRadius: BorderRadius.circular(EvioRadius.input),
-                    border: Border.all(color: EvioLightColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.map_outlined,
-                        color: EvioLightColors.mutedForeground,
-                        size: EvioSpacing.iconM,
+              // Venue / Club
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Venue / Club *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        color: EvioLightColors.foreground,
                       ),
-                      SizedBox(width: EvioSpacing.sm),
-                      Expanded(
+                    ),
+                    SizedBox(height: EvioSpacing.xs),
+                    InkWell(
+                      onTap: onSelectLocation,
+                      child: Container(
+                        height: 48,
+                        padding: EdgeInsets.symmetric(horizontal: EvioSpacing.sm),
+                        decoration: BoxDecoration(
+                          color: EvioLightColors.inputBackground,
+                          borderRadius: BorderRadius.circular(EvioRadius.input),
+                        ),
+                        alignment: Alignment.centerLeft,
                         child: Text(
-                          venueName.isEmpty
-                              ? 'Buscar en el mapa...'
-                              : '$venueName, $city',
+                          venueName.isEmpty ? 'Ej: Warehouse 23' : venueName,
                           style: TextStyle(
                             color: venueName.isEmpty
                                 ? EvioLightColors.mutedForeground
@@ -95,12 +88,47 @@ class FormLocationCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: EvioLightColors.mutedForeground,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: EvioSpacing.md),
+              // Ciudad, País
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ciudad, País *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        color: EvioLightColors.foreground,
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(height: EvioSpacing.xs),
+                    InkWell(
+                      onTap: onSelectLocation,
+                      child: Container(
+                        height: 48,
+                        padding: EdgeInsets.symmetric(horizontal: EvioSpacing.sm),
+                        decoration: BoxDecoration(
+                          color: EvioLightColors.inputBackground,
+                          borderRadius: BorderRadius.circular(EvioRadius.input),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          city.isEmpty ? 'Ej: Barcelona, España' : city,
+                          style: TextStyle(
+                            color: city.isEmpty
+                                ? EvioLightColors.mutedForeground
+                                : EvioLightColors.foreground,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
