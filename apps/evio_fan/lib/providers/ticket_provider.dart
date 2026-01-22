@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
+import 'auth_provider.dart';
 
 // ============================================
 // REPOSITORY PROVIDER
@@ -16,9 +17,21 @@ final ticketRepositoryProvider = Provider<TicketRepository>((ref) {
 
 /// Tickets activos (válidos, no usados, futuros) - CACHED
 final myActiveTicketsProvider = FutureProvider<List<Ticket>>((ref) async {
+  // ✅ Esperar auth
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return [];
+  
   debugPrint('🔄 [myActiveTicketsProvider] Fetching tickets...');
   final repository = ref.watch(ticketRepositoryProvider);
-  final tickets = await repository.getMyTickets(includeUsed: false, includePast: false);
+  
+  // ✅ Timeout de 15s para evitar cuelgues
+  final tickets = await repository
+      .getMyTickets(includeUsed: false, includePast: false)
+      .timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw Exception('Timeout al cargar tickets'),
+      );
+  
   debugPrint('✅ [myActiveTicketsProvider] ${tickets.length} tickets cargados');
   return tickets;
 });
@@ -28,7 +41,12 @@ final myTicketHistoryProvider = FutureProvider.autoDispose<List<Ticket>>((
   ref,
 ) async {
   final repository = ref.watch(ticketRepositoryProvider);
-  return repository.getMyTickets(includeUsed: true, includePast: true);
+  return repository
+      .getMyTickets(includeUsed: true, includePast: true)
+      .timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw Exception('Timeout al cargar historial'),
+      );
 });
 
 /// Ticket individual por ID
@@ -37,7 +55,12 @@ final ticketByIdProvider = FutureProvider.family.autoDispose<Ticket?, String>((
   ticketId,
 ) async {
   final repository = ref.watch(ticketRepositoryProvider);
-  return repository.getTicketById(ticketId);
+  return repository
+      .getTicketById(ticketId)
+      .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception('Timeout al cargar ticket'),
+      );
 });
 
 // ============================================

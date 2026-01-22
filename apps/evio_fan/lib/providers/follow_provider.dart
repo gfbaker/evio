@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
+import 'auth_provider.dart';
 
 // ============================================
 // REPOSITORY PROVIDER
@@ -14,19 +15,36 @@ final followRepositoryProvider = Provider<FollowRepository>((ref) {
 // ============================================
 
 /// Provider que obtiene la lista de usuarios que sigo
+/// keepAlive: true para que no se recargue al cambiar de tab
 final myFollowingProvider = FutureProvider<List<User>>((ref) async {
+  // ✅ Esperar auth
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return [];
+  
+  ref.keepAlive(); // ✅ Cache global
   final repo = ref.watch(followRepositoryProvider);
   return repo.getMyFollowing();
 });
 
 /// Provider que obtiene la lista de mis seguidores
+/// keepAlive: true para que no se recargue al cambiar de tab
 final myFollowersProvider = FutureProvider<List<User>>((ref) async {
+  // ✅ Esperar auth
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return [];
+  
+  ref.keepAlive(); // ✅ Cache global
   final repo = ref.watch(followRepositoryProvider);
   return repo.getMyFollowers();
 });
 
 /// Provider que obtiene los IDs de usuarios que sigo (para checks rápidos)
 final myFollowingIdsProvider = FutureProvider<Set<String>>((ref) async {
+  // ✅ Esperar auth
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return {};
+  
+  ref.keepAlive(); // ✅ Cache global
   final repo = ref.watch(followRepositoryProvider);
   return repo.getMyFollowingIds();
 });

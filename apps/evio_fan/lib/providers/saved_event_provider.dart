@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
+import 'auth_provider.dart';
 
 // ============================================
 // REPOSITORY PROVIDER
@@ -15,12 +16,25 @@ final savedEventRepositoryProvider = Provider<SavedEventRepository>((ref) {
 
 /// Provider que obtiene los eventos guardados del usuario
 final savedEventsProvider = FutureProvider<List<Event>>((ref) async {
+  // ✅ Esperar a que el usuario esté autenticado
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
+    // Retornar lista vacía mientras no hay auth (evita error)
+    return [];
+  }
+  
+  ref.keepAlive(); // ✅ Cache global
   final repo = ref.watch(savedEventRepositoryProvider);
   return repo.getMySavedEvents();
 });
 
 /// Provider que obtiene los IDs de eventos guardados (para checks rápidos)
 final savedEventIdsProvider = FutureProvider<Set<String>>((ref) async {
+  // ✅ Esperar a que el usuario esté autenticado
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return {};
+  
+  ref.keepAlive(); // ✅ Cache global
   final repo = ref.watch(savedEventRepositoryProvider);
   return repo.getMySavedEventIds();
 });

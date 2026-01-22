@@ -286,5 +286,151 @@ class _EventInfoBySlugProviderElement extends FutureProviderElement<Event?>
   String get slug => (origin as EventInfoBySlugProvider).slug;
 }
 
+// ---------------------------------------------------------------------------
+// producerInfoProvider
+// ---------------------------------------------------------------------------
+
+String _$producerInfoHash() => r'producer_info_hash_placeholder';
+
+/// Provider para obtener info de productora por ID (cached)
+///
+/// Copied from [producerInfo].
+@ProviderFor(producerInfo)
+const producerInfoProvider = ProducerInfoFamily();
+
+/// Provider para obtener info de productora por ID (cached)
+///
+/// Copied from [producerInfo].
+class ProducerInfoFamily extends Family<AsyncValue<Producer?>> {
+  /// Provider para obtener info de productora por ID (cached)
+  ///
+  /// Copied from [producerInfo].
+  const ProducerInfoFamily();
+
+  /// Provider para obtener info de productora por ID (cached)
+  ///
+  /// Copied from [producerInfo].
+  ProducerInfoProvider call(
+    String producerId,
+  ) {
+    return ProducerInfoProvider(
+      producerId,
+    );
+  }
+
+  @override
+  ProducerInfoProvider getProviderOverride(
+    covariant ProducerInfoProvider provider,
+  ) {
+    return call(
+      provider.producerId,
+    );
+  }
+
+  static const Iterable<ProviderOrFamily>? _dependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
+
+  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
+      _allTransitiveDependencies;
+
+  @override
+  String? get name => r'producerInfoProvider';
+}
+
+/// Provider para obtener info de productora por ID (cached)
+///
+/// Copied from [producerInfo].
+class ProducerInfoProvider extends FutureProvider<Producer?> {
+  /// Provider para obtener info de productora por ID (cached)
+  ///
+  /// Copied from [producerInfo].
+  ProducerInfoProvider(
+    String producerId,
+  ) : this._internal(
+          (ref) => producerInfo(
+            ref as ProducerInfoRef,
+            producerId,
+          ),
+          from: producerInfoProvider,
+          name: r'producerInfoProvider',
+          debugGetCreateSourceHash:
+              const bool.fromEnvironment('dart.vm.product')
+                  ? null
+                  : _$producerInfoHash,
+          dependencies: ProducerInfoFamily._dependencies,
+          allTransitiveDependencies:
+              ProducerInfoFamily._allTransitiveDependencies,
+          producerId: producerId,
+        );
+
+  ProducerInfoProvider._internal(
+    super._createNotifier, {
+    required super.name,
+    required super.dependencies,
+    required super.allTransitiveDependencies,
+    required super.debugGetCreateSourceHash,
+    required super.from,
+    required this.producerId,
+  }) : super.internal();
+
+  final String producerId;
+
+  @override
+  Override overrideWith(
+    FutureOr<Producer?> Function(ProducerInfoRef provider) create,
+  ) {
+    return ProviderOverride(
+      origin: this,
+      override: ProducerInfoProvider._internal(
+        (ref) => create(ref as ProducerInfoRef),
+        from: from,
+        name: null,
+        dependencies: null,
+        allTransitiveDependencies: null,
+        debugGetCreateSourceHash: null,
+        producerId: producerId,
+      ),
+    );
+  }
+
+  @override
+  FutureProviderElement<Producer?> createElement() {
+    return _ProducerInfoProviderElement(this);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ProducerInfoProvider && other.producerId == producerId;
+  }
+
+  @override
+  int get hashCode {
+    var hash = _SystemHash.combine(0, runtimeType.hashCode);
+    hash = _SystemHash.combine(hash, producerId.hashCode);
+
+    return _SystemHash.finish(hash);
+  }
+}
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+mixin ProducerInfoRef on FutureProviderRef<Producer?> {
+  /// The parameter `producerId` of this provider.
+  String get producerId;
+}
+
+class _ProducerInfoProviderElement extends FutureProviderElement<Producer?>
+    with ProducerInfoRef {
+  _ProducerInfoProviderElement(super.provider);
+
+  @override
+  String get producerId => (origin as ProducerInfoProvider).producerId;
+}
+
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

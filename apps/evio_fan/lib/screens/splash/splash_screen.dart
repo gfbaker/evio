@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../providers/event_provider.dart';
 
@@ -183,23 +184,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       debugPrint('🚀 [Splash] Iniciando prefetch...');
       final startTime = DateTime.now();
 
-      // ✅ Prefetch con timeout de 10s
-      final prefetchFuture = ref.read(eventsProvider.future).timeout(
+      // ✅ Prefetch eventos con timeout de 10s
+      final events = await ref.read(eventsProvider.future).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           debugPrint('⚠️ [Splash] Timeout en prefetch (10s), continuando sin datos');
           return <Event>[];
         },
       );
+
+      // ✅ Precachear thumbnails en paralelo (no bloquea navegación)
+      if (events.isNotEmpty) {
+        _precacheThumbnails(events);
+      }
       
       // ✅ Esperar mínimo 1.2s para UX (mostrar splash completo)
-      final results = await Future.wait([
-        prefetchFuture,
-        Future.delayed(const Duration(milliseconds: 1200)),
-      ]);
-
       final elapsed = DateTime.now().difference(startTime);
-      debugPrint('✅ [Splash] Prefetch completado en ${elapsed.inMilliseconds}ms');
+      final remainingDelay = 1200 - elapsed.inMilliseconds;
+      if (remainingDelay > 0) {
+        await Future.delayed(Duration(milliseconds: remainingDelay));
+      }
+
+      debugPrint('✅ [Splash] Prefetch completado en ${DateTime.now().difference(startTime).inMilliseconds}ms');
 
       // ✅ CRITICAL: Verificar estado antes de navegar
       if (_isDisposed || !mounted) {
@@ -216,13 +222,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       
       // ✅ RECOVERY: Navegar igual aunque falle
       if (!_isDisposed && mounted) {
-        // Pequeño delay antes de navegar para dar feedback visual
         await Future.delayed(const Duration(milliseconds: 500));
         
         if (!_isDisposed && mounted) {
           _navigateToHome();
         }
       }
+    }
+  }
+
+  // ============================================
+  // PRECACHE THUMBNAILS - Fire and forget
+  // ============================================
+
+  void _precacheThumbnails(List<Event> events) {
+    // Precachear los primeros 15 thumbnails (suficiente para home + search inicial)
+    final thumbnailsToCache = events
+        .take(15)
+        .map((e) => e.thumbnailUrl ?? e.imageUrl)
+        .where((url) => url != null && url.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    debugPrint('🖼️ [Splash] Precacheando ${thumbnailsToCache.length} thumbnails...');
+
+    for (final url in thumbnailsToCache) {
+      // Fire and forget - no esperamos, se cachean en background
+      CachedNetworkImageProvider(url)
+          .resolve(const ImageConfiguration())
+          .addListener(ImageStreamListener(
+            (_, __) {}, // Success - silent
+            onError: (e, _) => debugPrint('⚠️ [Splash] Error precache: $url'),
+          ));
     }
   }
 

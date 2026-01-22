@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,18 +5,16 @@ import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../providers/event_provider.dart';
 import '../../providers/saved_event_provider.dart'; // ⚡ AGREGADO
-import 'widgets/featured_event_card.dart';
-import 'widgets/single_event_card.dart';
+import '../../providers/notification_provider.dart';
+import '../../widgets/notification_bell.dart';
+import 'widgets/event_card.dart';
 import 'widgets/this_week_events_list.dart';
 import 'widgets/saved_events_carousel.dart';
 import 'widgets/gradient_section_title.dart';
 
-/// Home Screen profesional
-/// ✅ A PRUEBA DE BOMBAS NUCLEARES
-/// - Memory leak safe
-/// - Lifecycle aware
-/// - Timeout protected
-/// - Pull-to-refresh optimizado
+/// Home Screen - Simplificado siguiendo principios KISS
+/// ✅ Confía en Riverpod para cache/refresh
+/// ✅ Código predecible y explicable en 10 segundos
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -25,93 +22,32 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
   bool _isDisposed = false;
-  Timer? _refreshTimer;
+
+  // Espacio para bottom nav
+  static const _bottomNavSpace = 120.0;
 
   @override
   void initState() {
     super.initState();
-    
-    // ✅ Listener de scroll con check de mounted
     _scrollController.addListener(_onScroll);
     
-    // ✅ Listener de lifecycle
-    WidgetsBinding.instance.addObserver(this);
-    
-    // 🔄 Smart Refresh al entrar (solo si cache expiró)
+    // Inicializar notificaciones (una sola vez)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_isDisposed || !mounted) return;
-      
-      _safeSmartRefresh();
+      if (!mounted) return;
+      ref.read(notificationProvider.notifier).init();
     });
-  }
-  
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    
-    // ✅ Cuando la app vuelve del background
-    if (state == AppLifecycleState.resumed) {
-      if (_isDisposed || !mounted) return;
-      
-      debugPrint('🔄 [Home] App resumed, verificando cache...');
-      _safeSmartRefresh();
-    }
   }
 
   @override
   void dispose() {
     _isDisposed = true;
-    _refreshTimer?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
-  }
-
-  // ============================================
-  // SMART REFRESH NUCLEAR-PROOF
-  // ============================================
-  // ⚡ ESTRATEGIA:
-  // 1. Cancelar timer anterior para evitar leaks
-  // 2. Timeout de 18s en operación + 20s en timer backup
-  // 3. Catch específico de TimeoutException
-  // 4. Finally garantiza limpieza del timer
-  // 5. No propagar errores (silent fail, provider ya maneja)
-
-  Future<void> _safeSmartRefresh({bool force = false}) async {
-    if (_isDisposed || !mounted) return;
-
-    // ✅ Cancelar timer anterior si existe
-    _refreshTimer?.cancel();
-
-    try {
-      // ✅ Ejecutar con timeout propio
-      _refreshTimer = Timer(const Duration(seconds: 20), () {
-        if (!_isDisposed) {
-          debugPrint('⚠️ [Home] Timeout de smart refresh alcanzado');
-        }
-      });
-
-      await smartRefreshEvents(ref, force: force).timeout(
-        const Duration(seconds: 18),
-        onTimeout: () {
-          debugPrint('⚠️ [Home] Timeout en smartRefreshEvents');
-        },
-      );
-
-      _refreshTimer?.cancel();
-      
-    } on TimeoutException catch (e) {
-      debugPrint('⚠️ [Home] TimeoutException: $e');
-    } catch (e) {
-      debugPrint('❌ [Home] Error en smart refresh: $e');
-    } finally {
-      _refreshTimer?.cancel();
-    }
   }
 
   // ============================================
@@ -163,21 +99,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   // ============================================
-  // PULL TO REFRESH
+  // PULL TO REFRESH - Confía en el provider
   // ============================================
 
   Future<void> _handlePullToRefresh() async {
     if (_isDisposed || !mounted) return;
-    
-    debugPrint('🔄 [Home] Pull-to-refresh triggered');
-    
-    try {
-      // Force refresh (ignorar TTL) con timeout
-      await _safeSmartRefresh(force: true);
-    } catch (e) {
-      debugPrint('❌ [Home] Error en pull-to-refresh: $e');
-      // No mostrar error al usuario, el provider ya maneja errores
-    }
+    // Invalidar = Riverpod hace refetch automático
+    ref.invalidate(eventsProvider);
   }
 
   // ============================================
@@ -185,88 +113,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   // ============================================
 
   Widget _buildContent(BuildContext context, List<Event> events) {
-    if (events.isEmpty) {
-      return _buildEmpty();
-    }
+    if (events.isEmpty) return _buildEmpty();
+
+    // ✅ UN solo watch - código predecible
+    final savedEventsAsync = ref.watch(savedEventsProvider);
+    final hasSavedEvents = savedEventsAsync.maybeWhen(
+      data: (saved) => saved.isNotEmpty,
+      orElse: () => false,
+    );
 
     return SingleChildScrollView(
       controller: _scrollController,
-      physics: AlwaysScrollableScrollPhysics(), // Para RefreshIndicator
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Espacio para el header fijo
+          // Espacio para header fijo
           SizedBox(height: MediaQuery.of(context).padding.top + 60),
 
-          // ✅ 1. Featured Event Card (destacado con container aesthetic)
-          if (events.isNotEmpty) FeaturedEventCard(event: events.first),
+          // 1. Featured
+          EventCard(event: events.first, isFeatured: true),
+          SizedBox(height: EvioSpacing.xl),
 
-          // ⚡ SPACING CONDICIONAL: Solo agregar si HAY eventos guardados
-          Consumer(
-            builder: (context, ref, child) {
-              final savedEventsAsync = ref.watch(savedEventsProvider);
-              final hasSavedEvents = savedEventsAsync.maybeWhen(
-                data: (events) => events.isNotEmpty,
-                orElse: () => false,
-              );
-              
-              // Si hay guardados, agregar spacing
-              return hasSavedEvents 
-                  ? SizedBox(height: EvioSpacing.xl)
-                  : SizedBox.shrink();
-            },
-          ),
+          // 2. Guardados (si hay)
+          if (hasSavedEvents) ...[
+            SavedEventsCarousel(),
+            SizedBox(height: EvioSpacing.xl),
+          ],
 
-          // ✅ 2. Guardados (eventos reales guardados por el usuario)
-          // ⚡ Wrapper para manejar spacing condicional
-          Consumer(
-            builder: (context, ref, child) {
-              final savedEventsAsync = ref.watch(savedEventsProvider);
-              final hasSavedEvents = savedEventsAsync.maybeWhen(
-                data: (events) => events.isNotEmpty,
-                orElse: () => false,
-              );
-              
-              return Column(
-                children: [
-                  SavedEventsCarousel(),
-                  if (hasSavedEvents) SizedBox(height: EvioSpacing.xl),
-                ],
-              );
-            },
-          ),
+          // 3. Segundo evento (si hay)
+          if (events.length > 1) ...[
+            EventCard(event: events[1]),
+            SizedBox(height: EvioSpacing.xl),
+          ],
 
-          // ✅ 3. Single Event Card (sin container, segundo evento)
-          // ⚡ Agregar spacing solo si NO hay guardados
-          Consumer(
-            builder: (context, ref, child) {
-              final savedEventsAsync = ref.watch(savedEventsProvider);
-              final hasSavedEvents = savedEventsAsync.maybeWhen(
-                data: (events) => events.isNotEmpty,
-                orElse: () => false,
-              );
-              
-              return Column(
-                children: [
-                  // Si NO hay guardados, agregar spacing antes del single card
-                  if (!hasSavedEvents) SizedBox(height: EvioSpacing.xl),
-                  if (events.length > 1) SingleEventCard(event: events[1]),
-                ],
-              );
-            },
-          ),
-
-          SizedBox(height: EvioSpacing.xl), // ⚡ Reducido de xxl
-
-          // ✅ 4. Esta Semana (filtrado automático)
+          // 4. Esta Semana
           ThisWeekEventsList(events: events),
+          SizedBox(height: EvioSpacing.xl),
 
-          SizedBox(height: EvioSpacing.xl), // ⚡ Reducido de xxl
-
-          // ✅ 5. Todos los eventos restantes
+          // 5. Más eventos
           _buildRemainingEvents(events),
 
-          SizedBox(height: 120), // Espacio para bottom nav
+          SizedBox(height: _bottomNavSpace),
         ],
       ),
     );
@@ -347,12 +235,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           padding: EdgeInsets.symmetric(horizontal: EvioSpacing.md), // ⚡ Alineado
           child: GradientSectionTitle(text: 'Más Eventos'),
         ),
-        SizedBox(height: 16),
+        SizedBox(height: EvioSpacing.md),
 
-        // Cards grandes
+        // Cards estilo Dice
         ...remainingEvents.map((event) => Padding(
           padding: EdgeInsets.only(bottom: EvioSpacing.lg),
-          child: SingleEventCard(event: event),
+          child: EventCard(event: event),
         )),
       ],
     );
@@ -482,23 +370,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                             size: 28,
                           ),
                         ),
-                        SizedBox(width: EvioSpacing.xs),
 
-                        // Avatar
-                        GestureDetector(
-                          onTap: () {
-                            if (_isDisposed || !mounted) return;
-                            context.go('/profile');
-                          },
-                          child: CircleAvatar(
-                            radius: 20,
-                            backgroundColor: EvioFanColors.surface,
-                            child: Icon(
-                              Icons.person_rounded,
-                              color: EvioFanColors.mutedForeground,
-                              size: 24,
-                            ),
-                          ),
+                        // Notification bell
+                        NotificationBell(
+                          iconColor: EvioFanColors.foreground,
+                          iconSize: 26,
                         ),
                       ],
                     ),

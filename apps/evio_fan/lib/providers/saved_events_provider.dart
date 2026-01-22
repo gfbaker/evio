@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
 
@@ -39,67 +40,79 @@ class SavedEventsNotifier extends StateNotifier<AsyncValue<Set<String>>> {
       final savedIds = await repo.getMySavedEventIds();
       state = AsyncValue.data(savedIds);
     } catch (e, st) {
+      debugPrint('❌ [SavedEvents] Error loading: $e');
       state = AsyncValue.error(e, st);
     }
   }
 
   /// Guardar evento con optimistic update
   Future<void> saveEvent(String eventId) async {
+    debugPrint('📌 [SavedEvents] Guardando evento: $eventId');
+    
     // ⚡ Actualizar estado local PRIMERO (optimistic)
-    state.whenData((savedIds) {
-      state = AsyncValue.data({...savedIds, eventId});
-    });
+    final previousState = state.valueOrNull ?? {};
+    state = AsyncValue.data({...previousState, eventId});
 
     try {
       final repo = ref.read(savedEventRepositoryProvider);
       await repo.saveEvent(eventId);
       
-      // Invalidar providers relacionados
-      ref.invalidate(savedEventsProvider);
-      ref.invalidate(savedEventIdsProvider);
-    } catch (e) {
-      // Revertir en caso de error
-      state.whenData((savedIds) {
-        final newSet = Set<String>.from(savedIds);
-        newSet.remove(eventId);
-        state = AsyncValue.data(newSet);
+      debugPrint('✅ [SavedEvents] Evento guardado: $eventId');
+      
+      // Invalidar providers relacionados (en background, sin await)
+      Future.microtask(() {
+        ref.invalidate(savedEventsProvider);
+        ref.invalidate(savedEventIdsProvider);
       });
-      rethrow;
+    } catch (e, st) {
+      debugPrint('❌ [SavedEvents] Error guardando: $e');
+      // Revertir en caso de error
+      state = AsyncValue.data(previousState);
+      // No relanzar el error para evitar crashes en UI
     }
   }
 
   /// Desguardar evento con optimistic update
   Future<void> unsaveEvent(String eventId) async {
+    debugPrint('📌 [SavedEvents] Quitando evento: $eventId');
+    
     // ⚡ Actualizar estado local PRIMERO (optimistic)
-    state.whenData((savedIds) {
-      final newSet = Set<String>.from(savedIds);
-      newSet.remove(eventId);
-      state = AsyncValue.data(newSet);
-    });
+    final previousState = state.valueOrNull ?? {};
+    final newSet = Set<String>.from(previousState);
+    newSet.remove(eventId);
+    state = AsyncValue.data(newSet);
 
     try {
       final repo = ref.read(savedEventRepositoryProvider);
       await repo.unsaveEvent(eventId);
       
-      // Invalidar providers relacionados
-      ref.invalidate(savedEventsProvider);
-      ref.invalidate(savedEventIdsProvider);
-    } catch (e) {
-      // Revertir en caso de error
-      state.whenData((savedIds) {
-        state = AsyncValue.data({...savedIds, eventId});
+      debugPrint('✅ [SavedEvents] Evento quitado: $eventId');
+      
+      // Invalidar providers relacionados (en background, sin await)
+      Future.microtask(() {
+        ref.invalidate(savedEventsProvider);
+        ref.invalidate(savedEventIdsProvider);
       });
-      rethrow;
+    } catch (e, st) {
+      debugPrint('❌ [SavedEvents] Error quitando: $e');
+      // Revertir en caso de error
+      state = AsyncValue.data(previousState);
+      // No relanzar el error para evitar crashes en UI
     }
   }
 
   /// Toggle save/unsave
   Future<void> toggleSave(String eventId) async {
-    final currentState = state.valueOrNull ?? {};
-    if (currentState.contains(eventId)) {
-      await unsaveEvent(eventId);
-    } else {
-      await saveEvent(eventId);
+    try {
+      final currentState = state.valueOrNull ?? {};
+      if (currentState.contains(eventId)) {
+        await unsaveEvent(eventId);
+      } else {
+        await saveEvent(eventId);
+      }
+    } catch (e) {
+      debugPrint('❌ [SavedEvents] Error en toggleSave: $e');
+      // Silenciar error para evitar crash
     }
   }
 }

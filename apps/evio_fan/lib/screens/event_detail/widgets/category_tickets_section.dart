@@ -152,12 +152,17 @@ class CategoryTicketsSection extends StatelessWidget {
                     SizedBox(height: EvioSpacing.md),
 
                     // Tiers
-                    ...category.tiers.map((tier) {
+                    ...category.tiers.asMap().entries.map((tierEntry) {
+                      final tierIndex = tierEntry.key;
+                      final tier = tierEntry.value;
                       final isSelected = quantities.containsKey(tier.id);
                       final quantity = quantities[tier.id] ?? 0;
+                      final isLastTier = tierIndex == category.tiers.length - 1;
 
                       return Padding(
-                        padding: EdgeInsets.only(bottom: EvioSpacing.sm),
+                        padding: EdgeInsets.only(
+                          bottom: isLastTier ? 0 : EvioSpacing.md,
+                        ),
                         child: TierCard(
                           tier: tier,
                           categoryName: category.name,

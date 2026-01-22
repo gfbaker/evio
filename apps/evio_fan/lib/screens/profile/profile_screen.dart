@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/follow_provider.dart';
+import '../../providers/saved_event_provider.dart';
+import '../../widgets/auth/auth_bottom_sheet.dart';
 import 'tabs/guardados_tab.dart';
 import 'tabs/social_tab.dart';
 import 'tabs/collectibles_tab.dart';
@@ -17,6 +21,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -26,6 +31,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   @override
   void dispose() {
+    _isDisposed = true;
     _tabController.dispose();
     super.dispose();
   }
@@ -47,7 +53,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
         ),
       ),
-      error: (e, st) => _buildNoSessionState(),
+      error: (e, st) => _buildErrorState(e),
     );
   }
 
@@ -174,6 +180,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   Widget _buildNoSessionState() {
+    // ✅ SENIOR PATTERN: Sin modal automático, solo UI clara con CTA
+    return Scaffold(
+      body: Container(
+        decoration: EvioBackgrounds.screenBackground(EvioFanColors.background),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(EvioSpacing.xl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    size: 80,
+                    color: EvioFanColors.primary.withValues(alpha: 0.7),
+                  ),
+                  SizedBox(height: EvioSpacing.xl),
+                  Text(
+                    'Tu perfil te espera',
+                    style: EvioTypography.h2.copyWith(
+                      color: EvioFanColors.foreground,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: EvioSpacing.sm),
+                  Text(
+                    'Iniciá sesión para ver tu perfil, eventos guardados y configuración',
+                    style: EvioTypography.bodyMedium.copyWith(
+                      color: EvioFanColors.mutedForeground,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: EvioSpacing.xl),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () => AuthBottomSheet.show(context, redirectTo: '/profile'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: EvioFanColors.primary,
+                        foregroundColor: EvioFanColors.primaryForeground,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(EvioRadius.button),
+                        ),
+                      ),
+                      child: Text('Iniciar sesión', style: EvioTypography.button),
+                    ),
+                  ),
+                  SizedBox(height: EvioSpacing.md),
+                  TextButton(
+                    onPressed: () => context.go('/home'),
+                    child: Text(
+                      'Explorar eventos',
+                      style: EvioTypography.labelMedium.copyWith(
+                        color: EvioFanColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
     return Scaffold(
       body: Container(
         decoration: EvioBackgrounds.screenBackground(EvioFanColors.background),
@@ -182,15 +256,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.person_off_outlined,
+                Icons.error_outline_rounded,
                 size: 64,
-                color: EvioFanColors.mutedForeground,
+                color: EvioFanColors.error,
+              ),
+              SizedBox(height: EvioSpacing.md),
+              Text(
+                'Error al cargar perfil',
+                style: EvioTypography.h4.copyWith(color: EvioFanColors.foreground),
+              ),
+              SizedBox(height: EvioSpacing.sm),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: EvioSpacing.xl),
+                child: Text(
+                  error.toString(),
+                  style: EvioTypography.bodySmall.copyWith(
+                    color: EvioFanColors.mutedForeground,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               SizedBox(height: EvioSpacing.lg),
-              Text(
-                'No hay sesión activa',
-                style: EvioTypography.h4.copyWith(
-                  color: EvioFanColors.foreground,
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(currentUserProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: EvioFanColors.primary,
+                  foregroundColor: EvioFanColors.primaryForeground,
                 ),
               ),
             ],

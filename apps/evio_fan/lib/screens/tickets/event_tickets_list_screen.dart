@@ -283,16 +283,8 @@ class _TransferTicketBottomSheetState
   }
 
   /// Obtener el ID del usuario actual para evitar auto-transferencia
-  Future<void> _loadCurrentUser() async {
-    try {
-      final userId = await _userRepo.getCurrentUserIdAsync().timeout(
-        const Duration(seconds: 5),
-      );
-      if (_isDisposed) return;
-      setState(() => _currentUserId = userId);
-    } catch (e) {
-      // Silently fail, solo afecta la validación de auto-transferencia
-    }
+  void _loadCurrentUser() {
+    _currentUserId = _userRepo.getCurrentUserId();
   }
 
   @override
@@ -553,7 +545,7 @@ class _TransferTicketBottomSheetState
         _searchResults = filteredResults;
         _isSearching = false;
       });
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       if (_isDisposed || !mounted) return;
       setState(() => _isSearching = false);
       FloatingDialog.showError(
@@ -628,7 +620,7 @@ class _TransferTicketBottomSheetState
                       : null,
                   child: user.avatarUrl == null
                       ? Text(
-                          (user.fullName)[0].toUpperCase(),
+                          user.fullName[0].toUpperCase(),
                           style: TextStyle(
                             color: EvioFanColors.primary,
                             fontWeight: FontWeight.bold,
@@ -642,7 +634,7 @@ class _TransferTicketBottomSheetState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.fullName ?? user.email,
+                        user.fullName,
                         style: EvioTypography.bodyMedium.copyWith(
                           color: EvioFanColors.foreground,
                           fontWeight: FontWeight.w600,
@@ -712,7 +704,7 @@ class _TransferTicketBottomSheetState
           'Ticket transferido exitosamente a $_selectedUserEmail',
         );
       }
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       if (_isDisposed || !mounted) return;
       setState(() => _isTransferring = false);
       FloatingDialog.showError(

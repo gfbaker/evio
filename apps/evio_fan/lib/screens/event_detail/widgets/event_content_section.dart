@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../../providers/spotify_provider.dart';
 import 'event_location_section.dart';
@@ -11,7 +12,7 @@ class EventContentSection extends ConsumerStatefulWidget {
   final AsyncValue<List<TicketCategory>> categoriesAsync;
   final Map<String, int> quantities;
   final Function(String, int) onQuantityChanged;
-  final GlobalKey ticketsSectionKey; // ✅ Recibir el key
+  final GlobalKey ticketsSectionKey;
 
   const EventContentSection({
     super.key,
@@ -35,7 +36,6 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
   void initState() {
     super.initState();
     
-    // ⚡ OPCIÓN A: Fade in simple, sin slide
     _controller = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -49,7 +49,7 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
       curve: Curves.easeOut,
     ));
     
-    // ⚡ Empieza casi inmediatamente (sincronizado con hero)
+    // Empieza casi inmediatamente (sincronizado con hero)
     Future.delayed(Duration(milliseconds: 200), () {
       if (mounted) _controller.forward();
     });
@@ -72,7 +72,7 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
           children: [
             SizedBox(height: EvioSpacing.lg),
             if (widget.event.lineup.isNotEmpty) ...[
-              _buildLineUpSection(ref),
+              _buildLineUpSection(),
               SizedBox(height: EvioSpacing.xl),
             ],
             if (widget.event.description != null && widget.event.description!.isNotEmpty) ...[
@@ -80,7 +80,7 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
               SizedBox(height: EvioSpacing.xl),
             ],
             
-            // ✅ NUEVO: Sección de tickets con clave para scroll
+            // Sección de tickets con clave para scroll
             Container(
               key: widget.ticketsSectionKey,
               child: CategoryTicketsSection(
@@ -105,7 +105,7 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
     );
   }
 
-  Widget _buildLineUpSection(WidgetRef ref) {
+  Widget _buildLineUpSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -126,82 +126,14 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
             separatorBuilder: (_, __) => SizedBox(width: EvioSpacing.md),
             itemBuilder: (context, index) {
               final artist = widget.event.lineup[index];
-              return _buildArtistAvatar(artist, ref);
+              return _ArtistAvatarWidget(
+                artist: artist,
+                index: index,
+              );
             },
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildArtistAvatar(LineupArtist artist, WidgetRef ref) {
-    final imageAsync = ref.watch(artistImageProvider(artist.name));
-    
-    return Column(
-      children: [
-        // Siempre muestra algo (fallback o imagen real)
-        imageAsync.maybeWhen(
-          data: (imageUrl) {
-            if (imageUrl != null) {
-              return Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                    image: NetworkImage(imageUrl),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              );
-            }
-            return _buildFallbackAvatar(artist.name);
-          },
-          // Mientras carga O si hay error → fallback
-          orElse: () => _buildFallbackAvatar(artist.name),
-        ),
-        SizedBox(height: EvioSpacing.xs),
-        SizedBox(
-          width: 70,
-          child: Text(
-            artist.name,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: EvioFanColors.foreground,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFallbackAvatar(String name) {
-    final words = name.split(' ');
-    final initials = words.length > 1
-        ? '${words[0][0]}${words[1][0]}'.toUpperCase()
-        : name.substring(0, name.length > 2 ? 2 : name.length).toUpperCase();
-    
-    return Container(
-      width: 70,
-      height: 70,
-      decoration: BoxDecoration(
-        color: EvioFanColors.primary,
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 
@@ -227,6 +159,211 @@ class _EventContentSectionState extends ConsumerState<EventContentSection>
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Widget separado para cada artista con su propia animación de fade-in
+class _ArtistAvatarWidget extends ConsumerStatefulWidget {
+  final LineupArtist artist;
+  final int index;
+
+  const _ArtistAvatarWidget({
+    required this.artist,
+    required this.index,
+  });
+
+  @override
+  ConsumerState<_ArtistAvatarWidget> createState() => _ArtistAvatarWidgetState();
+}
+
+class _ArtistAvatarWidgetState extends ConsumerState<_ArtistAvatarWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  bool _imageReady = false;
+  String? _resolvedImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveImage();
+  }
+
+  void _resolveImage() {
+    // 1. Prioridad: Imagen manual del artista
+    if (widget.artist.imageUrl != null && widget.artist.imageUrl!.isNotEmpty) {
+      _resolvedImageUrl = widget.artist.imageUrl;
+      _precacheAndAnimate();
+      return;
+    }
+
+    // 2. Buscar en cache de Spotify (ya precargado)
+    final cache = ref.read(artistImageCacheProvider);
+    if (cache.containsKey(widget.artist.name)) {
+      _resolvedImageUrl = cache[widget.artist.name];
+      if (_resolvedImageUrl != null) {
+        _precacheAndAnimate();
+      } else {
+        // No hay imagen, mostrar fallback con animación
+        _showFallback();
+      }
+      return;
+    }
+
+    // 3. Si no está en cache, buscar en Spotify (fallback)
+    // Esto solo debería pasar si el evento no estaba en los primeros 10
+    _fetchFromSpotify();
+  }
+
+  void _fetchFromSpotify() {
+    // Observar el provider - esto hará fetch si no está en cache
+    final spotifyAsync = ref.read(artistImageProvider(widget.artist.name).future);
+    
+    spotifyAsync.then((imageUrl) {
+      if (!mounted) return;
+      
+      if (imageUrl != null) {
+        _resolvedImageUrl = imageUrl;
+        _precacheAndAnimate();
+      } else {
+        _showFallback();
+      }
+    }).catchError((_) {
+      if (mounted) _showFallback();
+    });
+  }
+
+  void _precacheAndAnimate() {
+    if (_resolvedImageUrl == null || !mounted || _imageReady) return;
+    
+    // Precargar la imagen antes de mostrarla
+    final imageProvider = CachedNetworkImageProvider(_resolvedImageUrl!);
+    precacheImage(imageProvider, context).then((_) {
+      if (!mounted || _imageReady) return;
+      
+      setState(() => _imageReady = true);
+      // Delay escalonado basado en índice para efecto cascada
+      Future.delayed(Duration(milliseconds: 30 * widget.index), () {
+        if (mounted) _fadeController.forward();
+      });
+    }).catchError((_) {
+      // Si falla la carga, mostrar fallback
+      if (mounted && !_imageReady) {
+        _showFallback();
+      }
+    });
+  }
+
+  void _showFallback() {
+    if (!mounted || _imageReady) return;
+    
+    setState(() {
+      _imageReady = true;
+      _resolvedImageUrl = null;
+    });
+    
+    Future.delayed(Duration(milliseconds: 30 * widget.index), () {
+      if (mounted) _fadeController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Avatar con fade-in
+        SizedBox(
+          width: 70,
+          height: 70,
+          child: Stack(
+            children: [
+              // Fallback/placeholder siempre visible debajo
+              _buildFallbackAvatar(),
+              
+              // Imagen con fade encima (si existe y está cargada)
+              if (_resolvedImageUrl != null && _imageReady)
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: DecorationImage(
+                        image: CachedNetworkImageProvider(_resolvedImageUrl!),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        SizedBox(height: EvioSpacing.xs),
+        SizedBox(
+          width: 70,
+          child: Text(
+            widget.artist.name,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: EvioFanColors.foreground,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFallbackAvatar() {
+    final name = widget.artist.name;
+    final words = name.split(' ');
+    final initials = words.length > 1
+        ? '${words[0][0]}${words[1][0]}'.toUpperCase()
+        : name.substring(0, name.length > 2 ? 2 : name.length).toUpperCase();
+    
+    return Container(
+      width: 70,
+      height: 70,
+      decoration: BoxDecoration(
+        color: EvioFanColors.muted,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            color: EvioFanColors.mutedForeground,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 }

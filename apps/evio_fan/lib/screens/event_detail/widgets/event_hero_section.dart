@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../../widgets/cached_event_image.dart';
+import '../../../widgets/auth/auth_bottom_sheet.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/saved_events_provider.dart';
 
 /// Hero section con animaciones coordinadas y sincronizadas
@@ -270,15 +272,47 @@ class _EventHeroSectionState extends ConsumerState<EventHeroSection>
   }
 
   Widget _buildBookmarkButton() {
+    // ✅ Verificar si hay usuario autenticado
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final savedIdsAsync = ref.watch(savedEventsNotifierProvider);
     
+    // Si no está autenticado, mostrar botón que abre auth modal
+    if (!isAuthenticated) {
+      return GestureDetector(
+        onTap: () {
+          // Mostrar modal de autenticación
+          AuthBottomSheet.show(
+            context, 
+            redirectTo: '/event/${widget.event.id}',
+          );
+        },
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: EvioFanColors.primary.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Icon(
+            Icons.bookmark_border,
+            color: Colors.white,
+            size: 22,
+          ),
+        ),
+      );
+    }
+    
+    // Usuario autenticado - mostrar estado real
     return savedIdsAsync.when(
       data: (savedIds) {
         final isSaved = savedIds.contains(widget.event.id);
         
         return GestureDetector(
           onTap: () {
-            // ⚡ Toggle inmediato sin await
+            // ⚡ Toggle inmediato
             ref
                 .read(savedEventsNotifierProvider.notifier)
                 .toggleSave(widget.event.id);
@@ -297,7 +331,7 @@ class _EventHeroSectionState extends ConsumerState<EventHeroSection>
             ),
             child: Icon(
               isSaved ? Icons.bookmark : Icons.bookmark_border,
-              color: Colors.white,
+              color: isSaved ? Colors.black : Colors.white,
               size: 22,
             ),
           ),
@@ -313,16 +347,42 @@ class _EventHeroSectionState extends ConsumerState<EventHeroSection>
             color: EvioFanColors.primary.withValues(alpha: 0.3),
           ),
         ),
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
-      error: (_, __) => SizedBox.shrink(),
+      error: (_, __) => GestureDetector(
+        onTap: () {
+          // En caso de error, intentar mostrar auth
+          AuthBottomSheet.show(
+            context, 
+            redirectTo: '/event/${widget.event.id}',
+          );
+        },
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: EvioFanColors.primary.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Icon(
+            Icons.bookmark_border,
+            color: Colors.white,
+            size: 22,
+          ),
+        ),
+      ),
     );
   }
 

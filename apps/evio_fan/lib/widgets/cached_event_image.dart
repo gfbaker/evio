@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -50,6 +49,12 @@ class CachedEventImage extends StatelessWidget {
       memCacheHeight: memCacheHeight,
       placeholder: (context, url) => _buildShimmer(),
       errorWidget: (context, url, error) => _buildPlaceholder(),
+      // ✅ Silenciar errores de imagen en consola
+      errorListener: (error) {
+        // Ignorar errores de formato de imagen silenciosamente
+        // Estos errores ya se manejan con errorWidget
+        debugPrint('⚠️ [CachedEventImage] Error cargando imagen: ${error.toString().split('\n').first}');
+      },
     );
 
     if (borderRadius != null) {

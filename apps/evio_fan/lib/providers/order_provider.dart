@@ -18,6 +18,10 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 
 /// Órdenes del usuario actual
 final myOrdersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
+  // ✅ Esperar auth
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return [];
+  
   final repository = ref.watch(orderRepositoryProvider);
   return repository.getMyOrders();
 });

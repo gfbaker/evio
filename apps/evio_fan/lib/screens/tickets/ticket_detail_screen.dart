@@ -23,6 +23,7 @@ class TicketDetailScreen extends ConsumerStatefulWidget {
 
 class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
     with SingleTickerProviderStateMixin {
+  bool _isDisposed = false;
   late PageController _pageController;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -59,6 +60,7 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
   }
 
   Future<void> _increaseBrightness() async {
+    if (_isDisposed) return;
     try {
       // ✅ Solo aumentar brillo al 100%, NO guardamos valor original
       await ScreenBrightness().setScreenBrightness(1.0);
@@ -84,6 +86,7 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
 
   @override
   void dispose() {
+    _isDisposed = true;
     _pageController.dispose();
     _animationController.dispose();
     _restoreBrightness();
@@ -258,6 +261,29 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen>
                         fontSize: 12,
                       ),
                     ),
+                    
+                    // ✅ Categoría del ticket
+                    if (ticket.categoryName != null) ...[
+                      SizedBox(height: 12),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Color(0xFFD4AF37).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Color(0xFFD4AF37).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          ticket.categoryName!,
+                          style: TextStyle(
+                            color: Color(0xFFD4AF37),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 

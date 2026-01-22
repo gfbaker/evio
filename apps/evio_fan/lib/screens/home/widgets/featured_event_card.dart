@@ -251,16 +251,4 @@ class FeaturedEventCard extends StatelessWidget {
     ];
     return months[date.month - 1];
   }
-
-  String _formatDate(DateTime date) {
-    final days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    final months = [
-      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-      'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
-    ];
-    final dayName = days[date.weekday % 7];
-    final day = date.day;
-    final month = months[date.month - 1];
-    return '$dayName $day $month';
-  }
 }

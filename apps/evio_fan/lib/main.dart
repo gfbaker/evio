@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/evio_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'config/router.dart';
 
 void main() async {
@@ -14,6 +15,9 @@ void main() async {
 
   await SupabaseService.initialize();
   await initializeDateFormatting('es', null);
+  
+  // Configurar timeago en español
+  timeago.setLocaleMessages('es', timeago.EsMessages());
   
   runApp(const ProviderScope(child: EvioFanApp()));
 }

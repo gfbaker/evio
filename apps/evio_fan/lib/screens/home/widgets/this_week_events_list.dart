@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
 import '../../../widgets/cached_event_image.dart';
-import '../../../providers/ticket_provider.dart';
 import 'gradient_section_title.dart';
 
 /// Lista de eventos de esta semana (lunes a domingo)
@@ -78,9 +77,6 @@ class _ThisWeekEventCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ✅ Cargar precio mínimo del evento
-    final minPriceAsync = ref.watch(eventMinPriceProvider(event.id));
-
     return InkWell(
       onTap: () => context.push('/event/${event.id}'),
       child: Row(

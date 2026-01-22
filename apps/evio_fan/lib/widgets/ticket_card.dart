@@ -85,6 +85,9 @@ class TicketCard extends StatelessWidget {
   }
 
   Widget _buildQRCode() {
+    // Generar payload seguro con HMAC (compatible con evio_queue)
+    final qrPayload = QrService.generateQrPayload(ticket.id, ticket.eventId);
+    
     return Container(
       padding: EdgeInsets.all(EvioSpacing.lg),
       decoration: BoxDecoration(
@@ -93,7 +96,7 @@ class TicketCard extends StatelessWidget {
         border: Border.all(color: Color(0xFFC6A664), width: 3),
       ),
       child: QrImageView(
-        data: ticket.id, // O ticket.qrSecret si lo tenés
+        data: qrPayload,
         version: QrVersions.auto,
         size: 200,
         backgroundColor: Colors.white,

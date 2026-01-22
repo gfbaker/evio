@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:evio_core/evio_core.dart';
 import 'package:intl/intl.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/ticket_provider.dart';
+import '../../widgets/auth/auth_bottom_sheet.dart';
 import '../../widgets/shimmer/tickets_list_shimmer.dart';
 
 class TicketsScreen extends ConsumerStatefulWidget {
@@ -14,20 +16,23 @@ class TicketsScreen extends ConsumerStatefulWidget {
 }
 
 class _TicketsScreenState extends ConsumerState<TicketsScreen> {
+  bool _isDisposed = false;
+
   @override
-  void initState() {
-    super.initState();
-    
-    // ✅ REFRESH: Invalidar cache y recargar siempre que se monta la pantalla
-    // Esto cubre: compras, transferencias, tickets free, etc.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.invalidate(myActiveTicketsProvider);
-    });
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final userId = ref.watch(currentUserIdProvider);
+    
+    // ✅ Si no hay sesión, mostrar bottom sheet de auth
+    if (userId == null) {
+      return _buildNoSessionState(context);
+    }
+    
     final ticketsAsync = ref.watch(myActiveTicketsProvider);
 
     return Scaffold(
@@ -41,19 +46,20 @@ class _TicketsScreenState extends ConsumerState<TicketsScreen> {
             }
 
             // Separar y agrupar por fecha y evento
+            // Un evento se considera "pasado" si ya pasaron 6+ horas desde su inicio
             final now = DateTime.now();
             final upcomingTickets = tickets
                 .where(
                   (t) =>
                       t.event?.startDatetime != null &&
-                      t.event!.startDatetime.isAfter(now),
+                      t.event!.startDatetime.isAfter(now.subtract(Duration(hours: 6))),
                 )
                 .toList();
             final pastTickets = tickets
                 .where(
                   (t) =>
                       t.event?.startDatetime != null &&
-                      t.event!.startDatetime.isBefore(now),
+                      t.event!.startDatetime.isBefore(now.subtract(Duration(hours: 6))),
                 )
                 .toList();
 
@@ -163,13 +169,8 @@ class _TicketsScreenState extends ConsumerState<TicketsScreen> {
               ],
             );
           },
-          loading: () => const TicketsListShimmer(), // ✅ Shimmer en lugar de spinner
-          error: (e, st) => Center(
-            child: Text(
-              'Error: $e',
-              style: TextStyle(color: EvioFanColors.error),
-            ),
-          ),
+          loading: () => const TicketsListShimmer(),
+          error: (e, st) => _buildErrorState(context, e),
         ),
       ),
       ),
@@ -182,6 +183,74 @@ class _TicketsScreenState extends ConsumerState<TicketsScreen> {
       groups.putIfAbsent(ticket.eventId, () => []).add(ticket);
     }
     return groups.entries.toList();
+  }
+
+  Widget _buildNoSessionState(BuildContext context) {
+    // ✅ SENIOR PATTERN: Sin modal automático, solo UI clara con CTA
+    return Scaffold(
+      body: Container(
+        decoration: EvioBackgrounds.screenBackground(EvioFanColors.background),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(EvioSpacing.xl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.confirmation_number_outlined,
+                    size: 80,
+                    color: EvioFanColors.primary.withValues(alpha: 0.7),
+                  ),
+                  SizedBox(height: EvioSpacing.xl),
+                  Text(
+                    'Tus tickets te esperan',
+                    style: EvioTypography.h2.copyWith(
+                      color: EvioFanColors.foreground,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: EvioSpacing.sm),
+                  Text(
+                    'Iniciá sesión para ver tus entradas y acceder a los eventos',
+                    style: EvioTypography.bodyMedium.copyWith(
+                      color: EvioFanColors.mutedForeground,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: EvioSpacing.xl),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () => AuthBottomSheet.show(context, redirectTo: '/tickets'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: EvioFanColors.primary,
+                        foregroundColor: EvioFanColors.primaryForeground,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(EvioRadius.button),
+                        ),
+                      ),
+                      child: Text('Iniciar sesión', style: EvioTypography.button),
+                    ),
+                  ),
+                  SizedBox(height: EvioSpacing.md),
+                  TextButton(
+                    onPressed: () => context.go('/home'),
+                    child: Text(
+                      'Explorar eventos',
+                      style: EvioTypography.labelMedium.copyWith(
+                        color: EvioFanColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -214,6 +283,49 @@ class _TicketsScreenState extends ConsumerState<TicketsScreen> {
               foregroundColor: EvioFanColors.primaryForeground,
             ),
             child: const Text('Explorar eventos'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, Object error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: 64,
+            color: EvioFanColors.error,
+          ),
+          SizedBox(height: EvioSpacing.md),
+          Text(
+            'Error al cargar tickets',
+            style: EvioTypography.h4.copyWith(color: EvioFanColors.foreground),
+          ),
+          SizedBox(height: EvioSpacing.sm),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: EvioSpacing.xl),
+            child: Text(
+              error.toString(),
+              style: EvioTypography.bodySmall.copyWith(
+                color: EvioFanColors.mutedForeground,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(height: EvioSpacing.lg),
+          ElevatedButton.icon(
+            onPressed: () => ref.invalidate(myActiveTicketsProvider),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reintentar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: EvioFanColors.primary,
+              foregroundColor: EvioFanColors.primaryForeground,
+            ),
           ),
         ],
       ),

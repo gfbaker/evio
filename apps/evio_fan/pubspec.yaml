@@ -28,6 +28,7 @@ dependencies:
   geolocator: ^13.0.2
   cached_network_image: ^3.3.0
   image_picker: ^1.0.7
+  timeago: ^3.6.1
 
 dev_dependencies:
   flutter_test:

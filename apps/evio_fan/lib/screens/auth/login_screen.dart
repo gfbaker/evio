@@ -22,18 +22,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authRepository = AuthRepository();
 
+  bool _isDisposed = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _error;
 
   @override
   void dispose() {
+    _isDisposed = true;
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
+    if (_isDisposed) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -45,20 +48,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await _authRepository.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-      );
+      ).timeout(const Duration(seconds: 15));
 
-      if (mounted) {
-        // ✅ El router maneja el redirect según el carrito
-        widget.onLoginSuccess();
-      }
+      if (_isDisposed || !mounted) return;
+      widget.onLoginSuccess();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = 'Email o contraseña incorrectos';
-        });
-      }
+      if (_isDisposed || !mounted) return;
+      setState(() {
+        _error = 'Email o contraseña incorrectos';
+      });
     } finally {
-      if (mounted) {
+      if (!_isDisposed && mounted) {
         setState(() {
           _isLoading = false;
         });

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:evio_core/evio_core.dart';
 
 /// Título de sección con primary mate
 /// ✅ Sin gradiente, solo primary

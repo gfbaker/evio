@@ -3,8 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:evio_core/models/event.dart';
+import 'package:evio_core/models/producer.dart';
 import 'package:evio_core/repositories/event_repository.dart';
 import 'package:evio_core/repositories/producer_repository.dart';
+import 'spotify_provider.dart';
 
 part 'event_provider.g.dart';
 
@@ -159,6 +161,7 @@ final eventFiltersProvider =
 
 /// Provider de eventos con filtros (CACHED - keepAlive)
 /// ✅ NUCLEAR PROOF: Error recovery, timeout protection
+/// ✅ Precarga imágenes de artistas automáticamente
 final eventsProvider = FutureProvider<List<Event>>((ref) async {
   final repository = ref.watch(eventRepositoryProvider);
   final filters = ref.watch(eventFiltersProvider);
@@ -181,6 +184,15 @@ final eventsProvider = FutureProvider<List<Event>>((ref) async {
     );
 
     debugPrint('✅ [eventsProvider] ${events.length} eventos cargados');
+    
+    // ✅ PRECARGAR IMÁGENES DE ARTISTAS (en background, no bloquea)
+    if (events.isNotEmpty) {
+      // Usar Future.microtask para no bloquear el return
+      Future.microtask(() {
+        preloadArtistImages(ref, events, maxEvents: 10);
+      });
+    }
+    
     return events;
     
   } on TimeoutException catch (e) {
@@ -342,5 +354,28 @@ Future<void> recordEventView(WidgetRef ref, String eventId) async {
   } catch (e) {
     debugPrint('❌ [recordEventView] Error: $e');
     // Fallar silenciosamente
+  }
+}
+
+// ============================================
+// PRODUCTORA
+// ============================================
+
+/// Provider para obtener info de productora por ID (cached)
+@Riverpod(keepAlive: true)
+Future<Producer?> producerInfo(ProducerInfoRef ref, String producerId) async {
+  final repository = ref.watch(producerRepositoryProvider);
+  
+  try {
+    return await repository.getProducerById(producerId).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        debugPrint('⚠️ [producerInfo] Timeout para producer $producerId');
+        return null;
+      },
+    );
+  } catch (e) {
+    debugPrint('❌ [producerInfo] Error: $e');
+    return null;
   }
 }

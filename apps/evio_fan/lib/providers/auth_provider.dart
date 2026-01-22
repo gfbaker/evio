@@ -52,5 +52,10 @@ final currentUserProvider = FutureProvider<User?>((ref) async {
 
   // Obtener el User completo de la tabla users
   final userRepo = UserRepository();
-  return userRepo.getCurrentUser();
+  return userRepo
+      .getCurrentUser()
+      .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception('Timeout al cargar perfil'),
+      );
 });

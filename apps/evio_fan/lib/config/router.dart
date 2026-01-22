@@ -2,6 +2,7 @@ import 'package:evio_fan/screens/tickets/ticket_detail_screen.dart';
 import 'package:evio_fan/screens/tickets/event_tickets_list_screen.dart';
 import 'package:evio_fan/screens/profile/edit_profile_screen.dart';
 import 'package:evio_fan/screens/search_users/search_users_screen.dart';
+import 'package:evio_fan/screens/notifications/notifications_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -115,10 +116,14 @@ final fanRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Checkout (sin bottom nav, full screen)
+      // Soporta: /checkout (normal) o /checkout?purchase_link=<id>
       GoRoute(
         path: '/checkout',
         name: 'checkout',
-        builder: (context, state) => const CheckoutScreen(),
+        builder: (context, state) {
+          final purchaseLinkId = state.uri.queryParameters['purchase_link'];
+          return CheckoutScreen(purchaseLinkId: purchaseLinkId);
+        },
       ),
 
       GoRoute(
@@ -156,6 +161,14 @@ final fanRouterProvider = Provider<GoRouter>((ref) {
         name: 'search-users',
         builder: (context, state) => const SearchUsersScreen(),
       ),
+
+      // Notifications (sin bottom nav, full screen)
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+
       // Auth routes (sin bottom nav)
       GoRoute(
         path: '/auth/login',
